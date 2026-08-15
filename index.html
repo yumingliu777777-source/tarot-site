@@ -73,7 +73,8 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .header-tools{display:flex;align-items:center;gap:8px}
 .tool-btn{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:rgba(17,17,26,.82);color:var(--gold);cursor:pointer;font-size:15px;transition:all .25s var(--ease)}
 .tool-btn:hover{border-color:var(--gold);color:var(--gold-hi);transform:translateY(-2px)}
-.brand{display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;border:0;padding:0;background:transparent;text-align:left;cursor:pointer}
+.brand:hover .sigil{border-color:var(--gold);box-shadow:0 0 20px rgba(201,169,87,.2)}
 .brand .sigil{width:38px;height:38px;border:1px solid var(--line);border-radius:50%;
   display:grid;place-items:center;color:var(--gold);font-size:20px;
   background:radial-gradient(circle at 50% 50%, var(--panel2), transparent 70%);
@@ -270,6 +271,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 .history-list{display:grid;gap:10px}.history-item{display:grid;grid-template-columns:104px 1fr auto;gap:14px;align-items:center;padding:14px 16px;background:var(--panel);border:1px solid var(--line)}.history-item h4{font-family:var(--serif);color:var(--gold-hi);font-weight:500;letter-spacing:.08em}.history-item p{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.55}.history-item time{font-size:11px;color:var(--gold-dim);white-space:nowrap}
 .dict-toolbar{display:flex;gap:10px;margin-bottom:18px}.dict-search{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);padding:12px 14px;font:14px var(--sans);outline:none}.dict-search:focus{border-color:var(--gold)}.dict-filter{background:var(--panel);color:var(--muted);border:1px solid var(--line);padding:0 10px;font:13px var(--sans)}
 .dict-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}.dict-item{background:var(--panel);border:1px solid var(--line);padding:15px}.dict-item h4{font-family:var(--serif);color:var(--gold-hi);letter-spacing:.08em}.dict-item .en{font-size:10px;color:var(--gold-dim);letter-spacing:.12em;margin:4px 0 9px}.dict-item .kws{font-size:11px;color:var(--gold);margin-bottom:8px}.dict-item p{font-size:12px;color:var(--muted);line-height:1.7}.share-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:24px}
+.api-form{display:grid;gap:14px}.api-form label{display:grid;gap:7px;font-size:12px;letter-spacing:.12em;color:var(--muted)}.api-form input{width:100%;background:var(--panel);border:1px solid var(--line);padding:12px;color:var(--ink);font:14px var(--sans);outline:none}.api-form input:focus{border-color:var(--gold)}.api-note{font-size:12px;color:var(--muted);line-height:1.75}.api-analysis{background:var(--panel);border:1px solid rgba(123,108,214,.4);padding:24px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-size:14px}.api-analysis.loading{color:var(--muted)}
 @media (max-width:760px){
   .spread-grid{grid-template-columns:1fr;max-width:420px}
   .card-list{grid-template-columns:1fr}
@@ -295,17 +297,18 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 
 <div class="wrap">
   <header>
-    <div class="brand">
+    <button class="brand" id="btnHome" title="返回首页" aria-label="返回首页">
       <div class="sigil">✦</div>
       <div>
         <h1>星夜塔罗</h1>
         <small>LUNAR TAROT</small>
       </div>
-    </div>
+    </button>
     <div class="header-tools" aria-label="塔罗工具">
       <button class="tool-btn" id="btnDaily" title="每日一签" aria-label="每日一签">☀</button>
       <button class="tool-btn" id="btnHistory" title="抽牌历史" aria-label="抽牌历史">◷</button>
       <button class="tool-btn" id="btnDict" title="牌意词典" aria-label="牌意词典">⌕</button>
+      <button class="tool-btn" id="btnApi" title="AI 接口设置" aria-label="AI 接口设置">⚙</button>
     </div>
     <div class="step-dots">
       <div class="dot on" id="dot0"></div>
@@ -438,6 +441,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
       <button class="btn ghost" id="btnReportRedo">重新占卜</button>
       <button class="btn ghost" id="btnCopyShare">复制分享链接</button>
       <button class="btn ghost" id="btnShareCard">生成分享卡</button>
+      <button class="btn ghost" id="btnAiReport">AI 深度解读</button>
       <button class="btn primary" id="btnPrint">打印 / 保存报告</button>
     </div>
     <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，不构成专业建议，请理性看待<br>它给不了你答案，却能陪你照见内心 —— 选择权永远在你</p>
@@ -931,6 +935,7 @@ $("btnReportRedo").onclick = $("btnRedo").onclick = resetAll;
 $("btnPrint").onclick = () => window.print();
 $("btnCopyShare").onclick = copyShareLink;
 $("btnShareCard").onclick = downloadShareCard;
+$("btnAiReport").onclick = generateAiReport;
 
 function renderReport(){
   const sp = SPREADS[state.spread];
@@ -1069,6 +1074,8 @@ function showToast(msg){
 /* Reader tools and local memory */
 const HISTORY_KEY = "lunar-tarot-history-v1";
 const DAILY_KEY = "lunar-tarot-daily-v1";
+const API_CONFIG_KEY = "lunar-tarot-api-config-v1";
+const API_KEY_SESSION = "lunar-tarot-api-key-v1";
 const cardByName = name => DECK.find(card => card[0] === name);
 const safeRead = key => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } };
 const safeWrite = (key, value) => localStorage.setItem(key, JSON.stringify(value));
@@ -1119,6 +1126,29 @@ function downloadShareCard(){
   const link=document.createElement("a"); link.download=`tarot-${localDay()}.png`; link.href=canvas.toDataURL("image/png"); link.click(); showToast("分享卡已生成");
 }
 
+function readApiConfig(){ try { return JSON.parse(localStorage.getItem(API_CONFIG_KEY) || "{}"); } catch { return {}; } }
+function apiPrompt(){
+  const spread=SPREADS[state.spread];
+  const cards=state.drawn.map((card,index)=>`${spread.slots[index].label}：${card[0]}（${card.reversed?"逆位":"正位"}），关键词：${card[4].join("、")}，释义：${card.reversed?card[6]:card[5]}`).join("\n");
+  return `你是一位温和、专业、不过度确定的中文塔罗解读师。请基于以下牌阵给出深度解读。不要声称预测绝对未来，不提供医疗、法律、投资或危机建议。结构包含：整体主题、各牌关联、潜在盲点、可执行建议（3条）、给提问者的一句总结。\n\n提问：${state.question||"整体运势指引"}\n牌阵：${spread.name}\n${cards}`;
+}
+async function generateAiReport(){
+  if(!state.drawn.length) return;
+  const config=readApiConfig(), key=sessionStorage.getItem(API_KEY_SESSION);
+  if(!config.endpoint || !config.model || !key){ openModal("api"); showToast("请先完成 AI 接口设置"); return; }
+  const root=$("report");
+  let panel=$("aiAnalysis");
+  if(!panel){ panel=document.createElement("section"); panel.id="aiAnalysis"; panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading">AI 正在整理这副牌阵的关联与行动建议...</div>'; root.appendChild(panel); }
+  const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
+  try{
+    const response=await fetch(config.endpoint.replace(/\/$/,"")+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},body:JSON.stringify({model:config.model,messages:[{role:"system",content:"你以中文提供关怀、清晰且负责任的塔罗解读。"},{role:"user",content:apiPrompt()}],temperature:.75})});
+    if(!response.ok) throw new Error(`接口返回 ${response.status}`);
+    const data=await response.json(), text=data?.choices?.[0]?.message?.content;
+    if(!text) throw new Error("接口未返回解读内容");
+    output.className="api-analysis"; output.textContent=text;
+  }catch(error){ output.className="api-analysis"; output.textContent=`AI 解读暂时无法生成：${error.message}。请检查接口地址、模型名称、密钥和 CORS 设置。`; }
+}
+
 function openModal(kind){
   const content = $("toolContent");
   if(kind === "daily"){
@@ -1131,15 +1161,28 @@ function openModal(kind){
     const reports=safeRead(HISTORY_KEY), daily=safeRead(DAILY_KEY).map(item=>({spread:"每日一签",at:item.day,cards:[item],question:"每日一签"})); const items=[...reports,...daily].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
     content.innerHTML=`<h2 class="modal-title" id="toolTitle">抽牌历史</h2><p class="modal-sub">记录保存在当前浏览器。报告最多保留 80 次，每日一签最多保留一年。</p><div class="history-list">${items.length?items.map((item,index)=>`<button class="history-item" data-history="${index}"><time>${String(item.at).slice(0,10)}</time><div><h4>${escapeHtml(item.spread || "塔罗报告")}</h4><p>${item.cards.map(card=>escapeHtml(card.name)).join(" · ")}</p></div><span>查看</span></button>`).join(""):`<p class="modal-sub">还没有记录。完成一次占卜或抽取每日一签后，它会出现在这里。</p>`}</div>`;
     content.querySelectorAll("[data-history]").forEach(button=>button.onclick=()=>{ const item=items[Number(button.dataset.history)]; if(item.spread==="每日一签"){openModal("daily"); return;} if(payloadToState(item)){closeModal();goStage(4);renderReport();} });
-  } else {
+  } else { if(kind === "dict") {
     content.innerHTML=`<h2 class="modal-title" id="toolTitle">牌意词典</h2><p class="modal-sub">完整收录 78 张塔罗牌的正位、逆位与关键词，可按名称、英文或关键词搜索。</p><div class="dict-toolbar"><input class="dict-search" id="dictSearch" placeholder="搜索牌名、英文名或关键词"><select class="dict-filter" id="dictFilter"><option value="">全部牌组</option><option value="大">大阿尔卡那</option><option value="权杖">权杖</option><option value="圣杯">圣杯</option><option value="宝剑">宝剑</option><option value="星币">星币</option></select></div><div class="dict-grid" id="dictGrid"></div>`;
     const renderDict=()=>{ const term=$("dictSearch").value.trim().toLowerCase(), suit=$("dictFilter").value; const cards=DECK.filter(card=>{const text=[card[0],card[1],card[3],...card[4]].join(" ").toLowerCase();return (!term||text.includes(term))&&(!suit||card[3]===suit);}); $("dictGrid").innerHTML=cards.map(card=>`<article class="dict-item"><h4>${card[0]}</h4><div class="en">${card[1]} · ${card[3]==="大"?"大阿尔卡那":card[3]}</div><div class="kws">${card[4].map(escapeHtml).join(" · ")}</div><p><b>正位：</b>${card[5]}</p><p><b>逆位：</b>${card[6]}</p></article>`).join("")||"<p class='modal-sub'>没有匹配的牌，请换个关键词试试。</p>"; };
     $("dictSearch").oninput=renderDict; $("dictFilter").onchange=renderDict; renderDict();
+    } else {
+    const config=readApiConfig();
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">AI 接口设置</h2><p class="modal-sub">兼容 OpenAI Chat Completions 格式。请求由你的浏览器直接发送到接口，不经过本网站服务器。</p><form class="api-form" id="apiForm"><label>接口地址<input id="apiEndpoint" type="url" required placeholder="https://api.example.com/v1" value="${escapeHtml(config.endpoint||"")}"></label><label>模型名称<input id="apiModel" required placeholder="例如 gpt-4o-mini" value="${escapeHtml(config.model||"")}"></label><label>API Key<input id="apiKey" type="password" required placeholder="仅保存于当前浏览器会话"></label><p class="api-note">为了降低密钥暴露风险，API Key 不会写入 localStorage；关闭浏览器标签页后需要重新填写。接口需允许来自 GitHub Pages 的跨域请求。</p><div class="btn-row"><button class="btn primary" type="submit">保存并启用</button></div></form>`;
+    $("apiForm").onsubmit=event=>{event.preventDefault(); const endpoint=$("apiEndpoint").value.trim().replace(/\/$/,""); const model=$("apiModel").value.trim(), key=$("apiKey").value.trim(); localStorage.setItem(API_CONFIG_KEY,JSON.stringify({endpoint,model})); sessionStorage.setItem(API_KEY_SESSION,key); closeModal(); showToast("AI 接口已启用");};
+  }
   }
   $("toolModal").classList.remove("hidden");
 }
 function closeModal(){ $("toolModal").classList.add("hidden"); }
-$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
+function goHome(){
+  stopCylinder();
+  state={spread:"single",drawn:[],flipped:0,question:"",fan:[]};
+  $("questionInput").value="";
+  $("reportBtnRow").classList.add("hidden");
+  closeModal();
+  goStage(0);
+}
+$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=()=>openModal("api"); $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
 
 /* init */
 buildDeck();
