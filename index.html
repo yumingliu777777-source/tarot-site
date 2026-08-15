@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星夜塔罗 · 在线占卜</title>
+<style>
+/* ── Tokens ─────────────────────────────────────────── */
+:root{
+  --bg:#07070b;
+  --bg2:#0c0c13;
+  --panel:#11111a;
+  --panel2:#16161f;
+  --line:rgba(201,169,87,.18);
+  --gold:#c9a957;
+  --gold-hi:#e8cf8f;
+  --gold-dim:#8a7440;
+  --ink:#e9e2d2;
+  --muted:#8f8876;
+  --violet:#7b6cd6;
+  --danger:#b0554f;
+  --ok:#7fa06a;
+  --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong","SimSun",serif;
+  --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  --ease:cubic-bezier(.22,.9,.3,1);
+  --card-w:150px;
+  --card-h:252px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+/* ── Starfield ──────────────────────────────────────── */
+.sky{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(1200px 600px at 75% -10%, rgba(123,108,214,.10), transparent 60%),
+    radial-gradient(900px 500px at 10% 110%, rgba(201,169,87,.07), transparent 60%),
+    var(--bg);
+}
+.sky::before{content:"";position:absolute;inset:0;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, #fff7, transparent 100%),
+    radial-gradient(1px 1px at 33% 8%, #ffe9b0cc, transparent 100%),
+    radial-gradient(1.5px 1.5px at 52% 64%, #fff5, transparent 100%),
+    radial-gradient(1px 1px at 68% 18%, #c9a95799, transparent 100%),
+    radial-gradient(1px 1px at 84% 42%, #fff4, transparent 100%),
+    radial-gradient(1.5px 1.5px at 91% 78%, #fff6, transparent 100%),
+    radial-gradient(1px 1px at 7% 74%, #fff3, transparent 100%),
+    radial-gradient(1px 1px at 45% 88%, #b9a6ff66, transparent 100%),
+    radial-gradient(1.2px 1.2px at 24% 48%, #fff4, transparent 100%),
+    radial-gradient(1px 1px at 77% 58%, #fff3, transparent 100%);
+  animation:twinkle 7s ease-in-out infinite alternate;
+}
+@keyframes twinkle{from{opacity:.55}to{opacity:1}}
+.moon{position:fixed;top:8vh;right:10vw;width:120px;height:120px;z-index:0;pointer-events:none;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 35%, #f3ecd9, #d9c9a0 55%, #8a7a52 100%);
+  box-shadow:0 0 60px 18px rgba(217,201,160,.16), 0 0 160px 60px rgba(217,201,160,.06);
+  opacity:.9;
+}
+.moon::after{content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 55% 50%, transparent 42%, var(--bg) 43%);
+}
+/* ── Layout ─────────────────────────────────────────── */
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .sigil{width:38px;height:38px;border:1px solid var(--line);border-radius:50%;
+  display:grid;place-items:center;color:var(--gold);font-size:20px;
+  background:radial-gradient(circle at 50% 50%, var(--panel2), transparent 70%);
+  box-shadow:0 0 18px rgba(201,169,87,.15) inset, 0 0 12px rgba(201,169,87,.08);
+}
+.brand h1{font-family:var(--serif);font-size:22px;letter-spacing:.35em;color:var(--gold-hi);font-weight:600}
+.brand small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.5em;color:var(--muted);margin-top:2px}
+.step-dots{display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:#2a2a35;transition:all .4s var(--ease)}
+.dot.on{background:var(--gold);box-shadow:0 0 10px rgba(201,169,87,.6)}
+.dot.done{background:var(--gold-dim)}
+.stage{animation:stageIn .6s var(--ease)}
+@keyframes stageIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.hidden{display:none!important}
+h2.title{font-family:var(--serif);font-size:30px;letter-spacing:.2em;text-align:center;color:var(--gold-hi);font-weight:600;margin-bottom:10px}
+p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;margin-bottom:36px}
+.goldline{width:120px;height:1px;margin:0 auto 8px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+/* ── Buttons ────────────────────────────────────────── */
+.btn{cursor:pointer;border:1px solid var(--line);background:linear-gradient(180deg,var(--panel2),var(--panel));
+  color:var(--gold-hi);font-family:var(--sans);font-size:15px;letter-spacing:.3em;
+  padding:14px 42px;border-radius:2px;transition:all .3s var(--ease);position:relative;overflow:hidden}
+.btn:hover{border-color:rgba(201,169,87,.5);box-shadow:0 0 24px rgba(201,169,87,.18);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.primary{background:linear-gradient(180deg,#d9b96a,#a8873c);color:#161207;border-color:#d9b96a;font-weight:600}
+.btn.primary:hover{box-shadow:0 0 34px rgba(217,185,106,.35)}
+.btn.ghost{background:transparent;color:var(--muted);border-color:#26262f}
+.btn.ghost:hover{color:var(--ink);border-color:var(--gold-dim)}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.btn-row{display:flex;gap:16px;justify-content:center;margin-top:28px;flex-wrap:wrap}
+/* ── Stage 1: question & spread ─────────────────────── */
+.ask-box{max-width:620px;margin:0 auto 44px}
+.ask-box label{display:block;font-size:12px;letter-spacing:.3em;color:var(--muted);margin-bottom:10px;text-align:center}
+.ask-box input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+  font-family:var(--serif);font-size:17px;letter-spacing:.08em;padding:16px 20px;border-radius:2px;outline:none;transition:border .3s}
+.ask-box input:focus{border-color:var(--gold)}
+.ask-box input::placeholder{color:#4d4a40;font-family:var(--sans);font-size:14px}
+.spread-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:860px;margin:0 auto}
+.spread-card{cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:4px;
+  padding:26px 20px 20px;text-align:center;transition:all .35s var(--ease);position:relative;overflow:hidden}
+.spread-card::before{content:"";position:absolute;inset:0;background:radial-gradient(400px 200px at 50% 0%, rgba(201,169,87,.08), transparent 70%);opacity:0;transition:opacity .3s}
+.spread-card:hover{transform:translateY(-4px);border-color:rgba(201,169,87,.4);box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.spread-card:hover::before{opacity:1}
+.spread-card.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold), 0 14px 44px rgba(201,169,87,.12)}
+.spread-card.sel::after{content:"✦";position:absolute;top:10px;right:14px;color:var(--gold);font-size:12px}
+.spread-card .mini{display:flex;justify-content:center;align-items:flex-end;gap:6px;height:64px;margin-bottom:16px}
+.mini .mcard{width:26px;height:44px;border:1px solid var(--gold-dim);border-radius:3px;background:linear-gradient(160deg,#1a1a24,#101016);box-shadow:0 4px 10px rgba(0,0,0,.5)}
+.mini .mcard.back{background:linear-gradient(160deg,#232033,#14121f);border-color:#4a3d6e;
+  background-image:radial-gradient(circle at 50% 50%, #6b5aa8 0 3px, transparent 3.5px);background-size:10px 10px}
+.spread-card h3{font-family:var(--serif);font-size:18px;letter-spacing:.2em;color:var(--gold-hi);margin-bottom:8px}
+.spread-card p{font-size:12.5px;color:var(--muted);line-height:1.7;letter-spacing:.04em}
+.spread-card .pos{display:block;font-size:10px;color:var(--gold-dim);letter-spacing:.2em;margin-top:10px}
+/* ── Stage 2: shuffle ───────────────────────────────── */
+.shuffle-zone{display:flex;flex-direction:column;align-items:center;min-height:420px;perspective:1400px}
+.deck{position:relative;width:var(--card-w);height:var(--card-h);transform-style:preserve-3d;transition:transform .5s var(--ease)}
+.deck.shuffling{animation:deckShake .5s ease-in-out infinite}
+@keyframes deckShake{0%,100%{transform:rotateY(0) rotateZ(0)}25%{transform:rotateY(8deg) rotateZ(1.5deg)}75%{transform:rotateY(-8deg) rotateZ(-1.5deg)}}
+.deck-card{position:absolute;inset:0;border-radius:8px;border:1px solid var(--line);
+  background:linear-gradient(165deg,#241f38,#14121f 60%);
+  background-image:
+    radial-gradient(circle at 50% 42%, #7b6cd6 0 4px, transparent 5px),
+    radial-gradient(circle at 50% 42%, #7b6cd6 0 4px, transparent 5px);
+  background-size:14px 14px;background-position:0 0,7px 7px;
+  box-shadow:0 6px 20px rgba(0,0,0,.6), inset 0 0 0 1px rgba(123,108,214,.15);
+  transform:translateZ(calc(var(--i) * 1.4px)) translateY(calc(var(--i) * -0.6px));
+}
+.deck-card::after{content:"";position:absolute;inset:5px;border:1px solid rgba(201,169,87,.35);border-radius:5px}
+.shuffle-hint{color:var(--muted);font-size:13px;letter-spacing:.2em;margin-top:40px;text-align:center}
+.shuffle-hint b{color:var(--gold-hi);font-weight:500}
+/* ── Stage 3: draw & reveal ─────────────────────────── */
+.spread-zone{position:relative;min-height:430px;perspective:1600px;margin-top:10px}
+.spread-table{position:relative;width:100%;max-width:860px;margin:0 auto}
+.draw-card{position:absolute;width:var(--card-w);height:var(--card-h);transform-style:preserve-3d;
+  transition:transform 1s var(--ease);cursor:pointer}
+.draw-card .card3d{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .9s var(--ease)}
+.draw-card.flipped .card3d{transform:rotateY(180deg)}
+.card-face,.card-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:8px;overflow:hidden}
+.card-back{background:linear-gradient(165deg,#241f38,#14121f 60%);
+  background-image:
+    radial-gradient(circle at 50% 42%, #7b6cd6 0 4px, transparent 5px),
+    radial-gradient(circle at 50% 42%, #7b6cd6 0 4px, transparent 5px);
+  background-size:14px 14px;background-position:0 0,7px 7px;
+  border:1px solid rgba(123,108,214,.3);
+  box-shadow:0 8px 26px rgba(0,0,0,.55), inset 0 0 0 1px rgba(123,108,214,.12)}
+.card-back::after{content:"";position:absolute;inset:5px;border:1px solid rgba(201,169,87,.4);border-radius:5px}
+.card-face{transform:rotateY(180deg);background:linear-gradient(170deg,#f5efe0,#e6dcc4);
+  border:1px solid #c9b980;box-shadow:0 8px 26px rgba(0,0,0,.55);
+  display:flex;flex-direction:column;align-items:center;color:#221d12}
+.card-face::before{content:"";position:absolute;inset:4px;border:1px solid rgba(140,115,55,.55);border-radius:6px;pointer-events:none}
+.card-face .num{font-family:var(--serif);font-size:13px;color:#7a6a3a;letter-spacing:.1em;margin-top:10px}
+.card-face .suit{font-size:30px;color:#8a6d2f;margin-top:2px;line-height:1}
+.card-face .glyph{flex:1;display:grid;place-items:center;font-size:52px;color:#6d5a24;width:100%}
+.card-face .cname{font-family:var(--serif);font-size:17px;letter-spacing:.18em;color:#2c2410;margin-bottom:4px}
+.card-face .cname-en{font-size:9px;letter-spacing:.28em;color:#8a7a4e;text-transform:uppercase;margin-bottom:10px}
+.card-face.rev .glyph{transform:rotate(180deg)}
+.card-face.rev .num::after{content:"逆";font-size:9px;color:#a03f38;letter-spacing:.05em;margin-left:4px}
+.pos-tag{position:absolute;left:50%;transform:translateX(-50%);bottom:-30px;white-space:nowrap;
+  font-size:11px;letter-spacing:.22em;color:var(--gold-dim);text-align:center;width:max-content}
+.draw-card.flipped .pos-tag{color:var(--gold-hi)}
+.reveal-hint{margin-top:14px;text-align:center;color:var(--muted);font-size:13px;letter-spacing:.2em}
+/* spread layouts */
+.slot-single{left:50%;top:40px;margin-left:calc(var(--card-w)/-2)}
+.slot-three{position:absolute;top:44px;margin-left:calc(var(--card-w)/-2)}
+.slot-celtic{position:absolute;top:30px;margin-left:calc(var(--card-w)/-2)}
+/* pick zone: joystick cylinder of face-down cards */
+.pick-zone{position:relative;max-width:860px;margin:0 auto 4px;touch-action:pan-y;
+  user-select:none;-webkit-user-select:none;cursor:grab}
+.pick-zone.dragging{cursor:grabbing}
+.fan-card{position:absolute;left:0;top:0;width:var(--card-w);height:var(--card-h);
+  cursor:pointer;will-change:transform;transition:filter .25s var(--ease);
+  filter:drop-shadow(0 10px 24px rgba(0,0,0,.5))}
+.fan-card .card-back{border-color:rgba(123,108,214,.45)}
+.fan-card:hover{z-index:200!important;filter:drop-shadow(0 0 26px rgba(201,169,87,.6)) brightness(1.15)}
+.fan-card.done{opacity:.16!important;pointer-events:none}
+.cyl-tip{text-align:center;color:var(--muted);font-size:12px;letter-spacing:.25em;margin-top:6px}
+.cyl-tip b{color:var(--gold-dim);font-weight:500}
+/* empty spread slots */
+.slot-wrap{position:absolute;width:var(--card-w);height:var(--card-h)}
+.slot-empty{position:absolute;inset:0;border:1.5px dashed rgba(201,169,87,.32);border-radius:8px;
+  display:grid;place-items:center;font-size:26px;color:rgba(201,169,87,.5);
+  background:radial-gradient(220px 130px at 50% 38%, rgba(201,169,87,.06), transparent 70%);
+  animation:slotBreathe 3s ease-in-out infinite}
+@keyframes slotBreathe{0%,100%{border-color:rgba(201,169,87,.28)}50%{border-color:rgba(201,169,87,.55)}}
+.slot-wrap.flipped .pos-tag{color:var(--gold-hi)}
+/* ── Stage 4: report ────────────────────────────────── */
+.report{max-width:860px;margin:0 auto}
+.report-head{text-align:center;margin-bottom:36px}
+.report-head .q{font-family:var(--serif);font-size:19px;color:var(--gold-hi);letter-spacing:.1em;margin-top:8px}
+.report-head .meta{font-size:11px;color:var(--muted);letter-spacing:.25em;margin-top:10px}
+.sec-title{font-family:var(--serif);font-size:17px;letter-spacing:.3em;color:var(--gold-hi);
+  display:flex;align-items:center;gap:14px;margin:44px 0 22px}
+.sec-title::before,.sec-title::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--line))}
+.sec-title::after{background:linear-gradient(90deg,var(--line),transparent)}
+.card-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px}
+.card-item{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:20px;display:flex;gap:18px;transition:border .3s}
+.card-item:hover{border-color:rgba(201,169,87,.35)}
+.card-item .thumb{width:74px;height:124px;flex-shrink:0;border-radius:5px;position:relative;
+  background:linear-gradient(170deg,#f5efe0,#e6dcc4);border:1px solid #c9b980;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#2c2410}
+.card-item .thumb .suit{font-size:18px;color:#8a6d2f}
+.card-item .thumb .glyph{font-size:26px;color:#6d5a24}
+.card-item .thumb .tname{font-family:var(--serif);font-size:10px;letter-spacing:.1em;margin-top:3px}
+.card-item .thumb.rev .glyph{transform:rotate(180deg)}
+.card-item .body{flex:1;min-width:0}
+.card-item .body h4{font-family:var(--serif);font-size:16px;letter-spacing:.12em;color:var(--gold-hi);font-weight:600}
+.card-item .body .pos-name{font-size:11px;letter-spacing:.2em;color:var(--gold-dim);margin:2px 0 8px}
+.card-item .body .ori{display:inline-block;font-size:10px;letter-spacing:.2em;padding:2px 10px;border-radius:20px;margin-bottom:8px}
+.ori.upright{color:var(--gold-hi);border:1px solid rgba(201,169,87,.4);background:rgba(201,169,87,.08)}
+.ori.reversed{color:#d98a7a;border:1px solid rgba(217,138,122,.4);background:rgba(217,138,122,.08)}
+.card-item .body .kws{font-size:12px;color:var(--gold);letter-spacing:.05em;margin-bottom:8px}
+.card-item .body p{font-size:13px;color:var(--muted);line-height:1.75;letter-spacing:.03em}
+.card-item .body p b{color:var(--ink);font-weight:500}
+/* synthesis */
+.analysis{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);
+  border-radius:6px;padding:34px 36px;position:relative;overflow:hidden}
+.analysis::before{content:"✦";position:absolute;top:14px;right:20px;color:var(--gold-dim);font-size:14px}
+.analysis p{font-size:14.5px;line-height:2.05;color:var(--muted);letter-spacing:.05em;margin-bottom:14px;text-indent:2em}
+.analysis p:last-child{margin-bottom:0}
+.analysis .lead{font-family:var(--serif);font-size:16.5px;color:var(--ink);text-indent:2em}
+.advice{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.advice .a{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:20px}
+.advice .a .at{font-size:11px;letter-spacing:.3em;color:var(--gold-dim);margin-bottom:10px}
+.advice .a p{font-size:13.5px;color:var(--muted);line-height:1.8}
+.advice .a p b{color:var(--gold-hi);font-weight:500}
+.foot-note{text-align:center;font-size:11px;color:#5a554a;letter-spacing:.2em;margin-top:60px;line-height:2}
+/* ── misc ───────────────────────────────────────────── */
+.glow{animation:glowPulse 3.2s ease-in-out infinite}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 0 rgba(201,169,87,0)}50%{box-shadow:0 0 34px rgba(201,169,87,.22)}}
+.toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--panel2);border:1px solid var(--line);color:var(--gold-hi);
+  font-size:13px;letter-spacing:.15em;padding:12px 26px;border-radius:2px;z-index:99;
+  opacity:0;transition:all .4s var(--ease);pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:760px){
+  .spread-grid{grid-template-columns:1fr;max-width:420px}
+  .card-list{grid-template-columns:1fr}
+  .analysis{padding:26px 20px}
+  .brand h1{font-size:18px;letter-spacing:.25em}
+  :root{--card-w:120px;--card-h:202px}
+  .spread-zone{min-height:340px}
+  .card-face .glyph{font-size:40px}
+  .card-face .cname{font-size:14px}
+  .moon{width:80px;height:80px;top:6vh;right:6vw}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div class="sky"></div>
+<div class="moon"></div>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="sigil">✦</div>
+      <div>
+        <h1>星夜塔罗</h1>
+        <small>LUNAR TAROT</small>
+      </div>
+    </div>
+    <div class="step-dots">
+      <div class="dot on" id="dot0"></div>
+      <div class="dot" id="dot1"></div>
+      <div class="dot" id="dot2"></div>
+      <div class="dot" id="dot3"></div>
+    </div>
+  </header>
+
+  <!-- Stage 0: intro -->
+  <section class="stage" id="stage0">
+    <div class="goldline"></div>
+    <h2 class="title">聆听星光的指引</h2>
+    <p class="sub">在心中默念你的困惑，塔罗将为你揭示潜意识的答案</p>
+    <div class="btn-row"><button class="btn primary" id="btnStart">✦ 开始占卜 ✦</button></div>
+  </section>
+
+  <!-- Stage 1: question & spread -->
+  <section class="stage hidden" id="stage1">
+    <div class="goldline"></div>
+    <h2 class="title">心之所问</h2>
+    <p class="sub">将你的问题凝聚成一句话，越具体，答案越清晰</p>
+    <div class="ask-box">
+      <label>你的问题（可留空，默认为整体运势）</label>
+      <input id="questionInput" type="text" maxlength="60" placeholder="例如：这段感情将走向何方？">
+    </div>
+    <div class="spread-grid" id="spreadGrid">
+      <div class="spread-card" data-spread="single">
+        <div class="mini"><div class="mcard back"></div></div>
+        <h3>单张占卜</h3>
+        <p>一张牌直指当下核心能量，适合快速解答"是与否、该不该"。</p>
+        <span class="pos">当下 · 指引</span>
+      </div>
+      <div class="spread-card" data-spread="three">
+        <div class="mini"><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div></div>
+        <h3>三张牌阵</h3>
+        <p>过去 · 现在 · 未来，看清一件事的来龙去脉与走向。</p>
+        <span class="pos">过去 · 现在 · 未来</span>
+      </div>
+      <div class="spread-card" data-spread="celtic">
+        <div class="mini"><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div></div>
+        <h3>凯尔特十字</h3>
+        <p>十张牌的深度阵型，全方位剖析问题根源、阻碍与最终结果。</p>
+        <span class="pos">深度 · 完整</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn ghost" id="btnBack0">返回</button>
+      <button class="btn primary" id="btnShuffle">洗牌</button>
+    </div>
+  </section>
+
+  <!-- Stage 2: shuffle -->
+  <section class="stage hidden" id="stage2">
+    <div class="goldline"></div>
+    <h2 class="title">洗牌 · 凝心</h2>
+    <p class="sub">牌堆正在回应你的心念，请在心里反复默念你的问题</p>
+    <div class="shuffle-zone">
+      <div class="deck" id="deck"></div>
+      <p class="shuffle-hint" id="shuffleHint">当你感觉准备好了，点击 <b>开始挑牌</b></p>
+    </div>
+    <div class="btn-row">
+      <button class="btn ghost" id="btnBack1">重洗</button>
+      <button class="btn primary" id="btnDraw">✦ 开始挑牌 ✦</button>
+    </div>
+  </section>
+
+  <!-- Stage 3: pick & reveal -->
+  <section class="stage hidden" id="stage3">
+    <div class="goldline"></div>
+    <h2 class="title">挑牌 · 聆听</h2>
+    <p class="sub" id="revealSub">凭直觉，从牌扇中挑出属于你的牌</p>
+    <div class="pick-zone" id="pickZone"></div>
+    <p class="reveal-hint" id="revealHint">从牌扇中逐张挑选，牌会飞入对应的牌位</p>
+    <div class="spread-zone">
+      <div class="spread-table" id="spreadTable"></div>
+    </div>
+    <div class="btn-row hidden" id="reportBtnRow">
+      <button class="btn ghost" id="btnRedo">重新占卜</button>
+      <button class="btn primary" id="btnReport">✦ 生成解读报告 ✦</button>
+    </div>
+  </section>
+
+  <!-- Stage 4: report -->
+  <section class="stage hidden" id="stage4">
+    <div class="goldline"></div>
+    <div class="report" id="report"></div>
+    <div class="btn-row">
+      <button class="btn ghost" id="btnReportRedo">重新占卜</button>
+      <button class="btn primary" id="btnPrint">打印 / 保存报告</button>
+    </div>
+    <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，请理性看待</p>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ══════════════ Deck data ══════════════ */
+const SUIT_GLYPH = { "权杖":"✦", "圣杯":"♥", "宝剑":"✧", "星币":"●" };
+const SUIT_SVG = {
+  "权杖":'<svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="#8a6d2f" stroke-width="2"><path d="M24 44V14"/><path d="M24 14c-8 0-12-3-12-8 6 0 12 2 12 8z"/><path d="M24 14c8 0 12-3 12-8-6 0-12 2-12 8z"/><path d="M24 24l-6-6M24 30l6-6" opacity=".6"/></svg>',
+  "圣杯":'<svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="#8a6d2f" stroke-width="2"><path d="M14 8h20l-3 22a7 7 0 0 1-14 0z"/><path d="M14 8c0 6 6 8 10 8s10-2 10-8"/><path d="M20 38h8M24 38v4" opacity=".7"/></svg>',
+  "宝剑":'<svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="#8a6d2f" stroke-width="2"><path d="M24 40L8 8M24 40V16M24 40l6-6M24 40l-6-6"/><circle cx="24" cy="10" r="4"/><path d="M12 12l6 6M36 12l-6 6"/></svg>',
+  "星币":'<svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="#8a6d2f" stroke-width="2"><circle cx="24" cy="24" r="16"/><path d="M24 12l3.6 7.3 8 .9-6 5.5 1.6 7.9-7.2-4.1-7.2 4.1 1.6-7.9-6-5.5 8-.9z" fill="#8a6d2f" opacity=".35"/></svg>'
+};
+const MAJOR_GLYPH = ["✶","✷","☽","✸","♛","✹","♥","✺","✻","✼","✾","⚖","✽","❖","☯","☿","☄","✦","☁","☀","✧","❂"];
+
+/* [中文名, 英文名, 数字, 大/小, 关键字数组, 正位释义, 逆位释义] */
+const DECK = [
+["愚者","The Fool",0,"大",["新的开始","冒险","纯真"],"一段崭新旅程正在展开，放下包袱，带着好奇与勇气迈出第一步。","过度鲁莽或犹豫不决，小心因轻率而错失方向，请先看清脚下。"],
+["魔术师","The Magician",1,"大",["创造力","意志","行动"],"你拥有实现愿望的全部资源，集中意志，将想法付诸行动，一切皆有可能。","能力被浪费或手段不正当，警惕夸夸其谈，回归脚踏实地。"],
+["女祭司","The High Priestess",2,"大",["直觉","潜意识","静观"],"答案藏在静默之中，倾听直觉与梦境，答案自会浮现，无需急于求成。","忽视内心声音或故作神秘，警惕信息不足便下结论。"],
+["女皇","The Empress",3,"大",["丰饶","滋养","感性"],"丰盛与爱正在生长，善待自己与他人，让创造力在温暖中开花结果。","过度付出或依赖，情绪泛滥掩盖了真实需求，先照顾好自己的心。"],
+["皇帝","The Emperor",4,"大",["权威","秩序","掌控"],"以理性建立规则与边界，承担责任，稳扎稳打，局面将尽在掌握。","固执专断或权威失控，警惕用强势掩盖不安，学会柔软与倾听。"],
+["教皇","The Hierophant",5,"大",["传统","信念","指引"],"遵循经验与传统，向值得信赖的导师请教，你会获得宝贵的方向。","教条僵化或盲从权威，重新审视规则是否真的适合当下的你。"],
+["恋人","The Lovers",6,"大",["爱","结合","抉择"],"心与心的联结加深，真诚沟通带来和谐；也象征关键抉择，听从真心。","关系失衡或选择两难，先厘清自己的价值，再决定走向。"],
+["战车","The Chariot",7,"大",["胜利","意志","前进"],"凭坚定的意志驾驭矛盾的力量，目标明确，胜利在望，勇往直前。","方向失控或急于求成，暂停重整旗鼓，别让冲动夺走主导权。"],
+["力量","Strength",8,"大",["勇气","耐心","内在力"],"真正的力量是温柔而坚定的，以耐心和善意驯服内心的猛兽。","自我怀疑或外强中干，别硬撑，接纳脆弱才能获得真正的力量。"],
+["隐士","The Hermit",9,"大",["内省","独处","智慧"],"退一步向内探索，独处是充电而非逃避，智慧之光将照亮前路。","过度孤立或拒绝求助，别把独处变成自我封闭，适时点亮灯火。"],
+["命运之轮","Wheel of Fortune",10,"大",["转机","循环","机遇"],"命运的齿轮正在转动，抓住突如其来的机遇，顺势而为，时来运转。","时运不济或抗拒变化，记住低谷是循环的一部分，耐心等待转折。"],
+["正义","Justice",11,"大",["公正","因果","平衡"],"真相与因果正在显现，以诚实与理性衡量一切，你将得到公正的回应。","偏颇或不公令人困扰，检查自己的选择是否经得起良心的审视。"],
+["倒吊人","The Hanged Man",12,"大",["换位","牺牲","暂停"],"换个角度看问题，暂时停顿不是停滞，而是以退为进的智慧。","无谓的牺牲或拖延，别困在自我感动里，必要时果断抽身。"],
+["死神","Death",13,"大",["结束","蜕变","重生"],"旧的篇章必须合上，新生命才能展开。放下执念，蜕变正在发生。","抗拒改变让局面僵持，恐惧只放大痛苦，放手才能迎来新生。"],
+["节制","Temperance",14,"大",["调和","耐心","中庸"],"以耐心调和极端，平衡各方力量，细水长流方能抵达远方。","失衡或走极端，过度消耗自己，找回节奏，张弛有度。"],
+["恶魔","The Devil",15,"大",["束缚","欲望","执念"],"看清正在束缚你的锁链——它往往来自内心。直面欲望，你本就自由。","挣脱枷锁的觉醒时刻，停止自我设限，为自己松绑。"],
+["高塔","The Tower",16,"大",["剧变","崩塌","真相"],"突如其来的震动击碎虚假的安稳，真相令人疼痛，却为重建腾出空间。","灾后重建期，虽然慌乱，但废墟之上正是新生的起点。"],
+["星星","The Star",17,"大",["希望","疗愈","灵感"],"星光温柔，创伤正在愈合，希望与灵感如清泉流淌，请保持信念。","信心低落或灵感枯竭，别熄灭那点微光，它只是暂时被云遮住。"],
+["月亮","The Moon",18,"大",["幻象","不安","潜意识"],"迷雾笼罩，所见未必为真，警惕幻觉与不安，静待真相浮出水面。","迷雾即将散去，潜意识的暗示逐渐清晰，勇敢直面内心的恐惧。"],
+["太阳","The Sun",19,"大",["成功","喜悦","活力"],"阳光普照，一切明朗而丰盛，成功与喜悦如约而至，尽情发光吧。","短暂的阴霾或过度张扬，保持谦逊，光明并未离开，只是稍作休整。"],
+["审判","Judgement",20,"大",["觉醒","复苏","召唤"],"内心深处的召唤被听见，过去的功课迎来清算与新生，大胆回应它。","自我怀疑或错失时机，别让愧疚困住脚步，觉醒永远不晚。"],
+["世界","The World",21,"大",["圆满","完成","成就"],"一个周期圆满落幕，所有努力终于整合成完整的果实，庆祝并迈向新程。","未竟之事或拖延收尾，最后的几步最耗心力，坚持将它走完。"],
+["权杖一","Ace of Wands","A","权杖",["新机会","灵感","创造"],"热情的火种已经点燃，新的机会与灵感喷薄而出，勇敢抓住它。","灵感延迟或动力不足，别急着放弃，先让火种重新燃烧。"],
+["权杖二","Two of Wands","II","权杖",["规划","远见","抉择"],"站在十字路口眺望远方，世界在你手中，大胆规划你的征途。","畏惧未知或格局受限，别让安逸困住可能性，把目光放远。"],
+["权杖三","Three of Wands","III","权杖",["扩展","远航","合作"],"事业版图正在扩展，合作与远见带来丰收，静候好消息靠岸。","计划受阻或合作不畅，检查方向是否清晰，等待合适的时机。"],
+["权杖四","Four of Wands","IV","权杖",["庆祝","安定","和谐"],"阶段性成果值得庆祝，家庭与团队和谐美满，享受这份安稳喜悦。","表面和谐暗藏不稳，或庆祝被推迟，先稳固根基再举杯。"],
+["权杖五","Five of Wands","V","权杖",["竞争","冲突","挑战"],"多方角力、意见相左，竞争虽激烈，却能磨炼出更锐利的自己。","争执升级或两败俱伤，放下输赢心态，寻找共同的解法。"],
+["权杖六","Six of Wands","VI","权杖",["胜利","认可","凯旋"],"努力获得公开认可，胜利的桂冠加身，享受荣耀，也保持清醒。","赞誉易逝或遭遇挫败，别被一次失败否定全部价值，调整再战。"],
+["权杖七","Seven of Wands","VII","权杖",["坚守","防御","立场"],"站在高处守卫自己的位置，信念坚定，你有能力顶住压力。","防线松动或力不从心，重新评估战场，退一步不代表认输。"],
+["权杖八","Eight of Wands","VIII","权杖",["迅速","消息","进展"],"事情正在飞速推进，好消息与进展接踵而至，请跟上节奏。","进展受阻或急转直下，别慌张，慢下来反而看得更清。"],
+["权杖九","Nine of Wands","IX","权杖",["坚韧","戒备","边界"],"伤痕累累仍坚守阵地，你的韧性远超想象，但也要允许自己休息。","疲惫多疑或过度防御，放下重担，信任并非所有方向都有敌人。"],
+["权杖十","Ten of Wands","X","权杖",["负担","责任","过劳"],"扛着太多责任前行，付出终有回报，但请学会分担与取舍。","不堪重负或逃避责任，别再硬撑，卸下不属于你的担子。"],
+["权杖侍从","Page of Wands","侍从","权杖",["热情","探索","消息"],"带着好奇心探索新领域，一条令人振奋的消息正在路上。","浮躁冲动或方向不明，先沉淀下来，热情需要方向才能燃烧。"],
+["权杖骑士","Knight of Wands","骑士","权杖",["冒险","冲劲","行动"],"行动力满格，说走就走，你的热情能点燃身边所有人。","鲁莽冒进或三分钟热度，给冲动装上缰绳，稳中求胜。"],
+["权杖皇后","Queen of Wands","皇后","权杖",["自信","魅力","活力"],"自信从容、魅力四射，你的存在本身就是一种鼓舞。","嫉妒心起或过于强势，把焦点放回自己，光芒无需比较。"],
+["权杖国王","King of Wands","国王","权杖",["领导","远见","魄力"],"以远见与魄力引领全局，你的决断将带动整个局面向前。","专断急躁或好大喜功，倾听他人的声音，真正的领袖懂得借力。"],
+["圣杯一","Ace of Cups","A","圣杯",["新感情","喜悦","直觉"],"心门打开，爱与情感如泉水涌出，新的情感或灵感正在降临。","情感压抑或内心空虚，别关闭心扉，先允许自己感受。"],
+["圣杯二","Two of Cups","II","圣杯",["联结","平衡","默契"],"两颗心真诚相映，合作与情感都达到和谐，珍惜这份默契。","关系失衡或误会暗生，敞开心扉沟通，隔阂才能消融。"],
+["圣杯三","Three of Cups","III","圣杯",["友谊","庆祝","丰收"],"与挚友同欢，庆祝丰收的时刻，喜悦因分享而加倍。","过度放纵或流言蜚语，热闹之余守住分寸，真心最珍贵。"],
+["圣杯四","Four of Cups","IV","圣杯",["厌倦","冷漠","内省"],"对眼前的一切感到倦怠，但机会就藏在被忽略的角落里。","新机会正在敲门，从自我沉溺中抬头，别错过递到面前的橄榄枝。"],
+["圣杯五","Five of Cups","V","圣杯",["失落","遗憾","悲伤"],"目光停在打翻的杯子上，悲伤真实存在，但身后还有两杯未洒的水。","学会接受与放下，转身看见仍然拥有的，疗愈从此刻开始。"],
+["圣杯六","Six of Cups","VI","圣杯",["怀旧","纯真","回忆"],"旧日温情涌上心头，故人或回忆带来慰藉，也提醒你活在当下。","沉溺过去或故步自封，回忆是糖不是牢笼，向前走才能遇见新风景。"],
+["圣杯七","Seven of Cups","VII","圣杯",["幻想","选择","诱惑"],"眼前浮现无数选择与幻象，别被海市蜃楼迷惑，听从内心最真的那一个。","迷雾散去，看清现实与幻想的边界，做出清醒的决定。"],
+["圣杯八","Eight of Cups","VIII","圣杯",["离开","追寻","放手"],"放下不再滋养你的一切，转身走向更深处的追寻，空杯才能盛新酒。","害怕改变而徘徊不前，或离开后仍有牵挂，允许自己慢慢走。"],
+["圣杯九","Nine of Cups","IX","圣杯",["满足","如愿","自爱"],"愿望即将达成，内心的满足感满溢，学会享受并犒赏自己。","表面满足暗藏空虚，或贪心不足，幸福不在别处，而在知足。"],
+["圣杯十","Ten of Cups","X","圣杯",["圆满","幸福","家庭"],"情感世界圆满丰盛，家庭与关系的和谐是此刻最珍贵的礼物。","关系裂痕或幸福观分歧，别只看表面完整，用心修补真实的联结。"],
+["圣杯侍从","Page of Cups","侍从","圣杯",["灵感","敏感","新感情"],"心湖泛起涟漪，新的情感或创意悄然萌芽，请温柔以待。","情绪化或过度敏感，先安顿好自己的心，再回应外界的波动。"],
+["圣杯骑士","Knight of Cups","骑士","圣杯",["浪漫","理想","追求"],"带着浪漫与诚意款款而来，理想主义的追求令人心动。","逃避承诺或沉迷幻想，把理想落进现实，真诚才有分量。"],
+["圣杯皇后","Queen of Cups","皇后","圣杯",["共情","滋养","直觉"],"以温柔的共情力滋养他人，你的直觉敏锐，是最可靠的指南针。","情绪泛滥或过度牺牲，先填满自己的杯子，才能继续给予。"],
+["圣杯国王","King of Cups","国王","圣杯",["成熟","温和","智慧"],"情绪成熟、温和包容，以稳定的心湖承载风浪，令人安心依靠。","情绪压抑或故作冷漠，承认感受不是软弱，真实才有力。"],
+["宝剑一","Ace of Swords","A","宝剑",["真相","清晰","突破"],"利剑出鞘，思维清明如镜，真相与突破同时降临，果断出击。","思路混乱或误判形势，先厘清事实，再挥剑不迟。"],
+["宝剑二","Two of Swords","II","宝剑",["两难","回避","僵持"],"蒙眼持剑，站在两难中心，回避无法解决问题，摘下眼罩做选择。","抉择时刻到来，真相早已摆在眼前，勇敢面对才能破局。"],
+["宝剑三","Three of Swords","III","宝剑",["心碎","伤痛","真相"],"利剑穿心，伤痛真实而尖锐，允许自己悲伤，伤口才有愈合的可能。","疗愈正在发生，心碎之后是清醒，破碎处将长出新的理解。"],
+["宝剑四","Four of Swords","IV","宝剑",["休息","恢复","平静"],"放下武器，给自己一段静默的休整期，充电是为了走更远的路。","休息不足或停滞过久，平衡休整与行动，别把静止当成终点。"],
+["宝剑五","Five of Swords","V","宝剑",["争执","失败","损耗"],"赢了面子输了里子，争执的代价远高于收获，适时收手才是智慧。","和解的契机出现，放下输赢，修复关系比证明对错更重要。"],
+["宝剑六","Six of Swords","VI","宝剑",["过渡","疗愈","远行"],"乘舟驶离风浪，带着经验驶向平静的水域，疗愈之旅正在进行。","滞留不前或旧事重提，船桨在你手里，划向对岸需要行动。"],
+["宝剑七","Seven of Swords","VII","宝剑",["策略","隐瞒","智取"],"以智取胜或暗度陈仓，策略本身没有错，但要确认它经得起阳光。","谎言将露或计谋反噬，坦诚面对，卸下防备反而更轻松。"],
+["宝剑八","Eight of Swords","VIII","宝剑",["束缚","设限","无助"],"困住你的并非刀刃，而是自己编织的恐惧之网，眼罩是可以摘下的。","觉醒与解脱，看清束缚只是幻象，迈出一步，自由唾手可得。"],
+["宝剑九","Nine of Swords","IX","宝剑",["焦虑","噩梦","担忧"],"深夜的焦虑被无限放大，大多数恐惧只是想象，天总会亮。","释然与面对，把担忧摊开在阳光下，你会发现它比想象中小得多。"],
+["宝剑十","Ten of Swords","X","宝剑",["结束","谷底","重生"],"最痛的一击已经落下，谷底之后只有向上，结束亦是重生的序章。","否极泰来，伤口开始结痂，放下执念，新的一天已经到来。"],
+["宝剑侍从","Page of Swords","侍从","宝剑",["好奇","观察","新想法"],"敏锐的观察力与旺盛的好奇心，新想法如风而至，保持警觉。","轻率言语或散播流言，三思而后言，锋利要用对地方。"],
+["宝剑骑士","Knight of Swords","骑士","宝剑",["果断","冲劲","直率"],"风驰电掣般冲向目标，果断直率是你的武器，但也记得看路。","鲁莽冒进或言语伤人，慢半拍，让行动跟得上思考。"],
+["宝剑皇后","Queen of Swords","皇后","宝剑",["独立","理性","清晰"],"独立清醒、目光如炬，以理性裁断一切，不依附也不妥协。","刻薄疏离或过度防御，理智之外留一点温度，锋利也有柔光。"],
+["宝剑国王","King of Swords","国王","宝剑",["公正","权威","理智"],"以绝对的理性与公正执掌局面，条理分明，令人信服。","滥用权力或冷酷无情，规则之外还有人心，别让道理冷了人情。"],
+["星币一","Ace of Pentacles","A","星币",["新机遇","财富","务实"],"一颗饱满的星币落在掌心，物质新机与稳定根基正在成形，好好培育。","机会溜走或根基不稳，先夯实脚下，再谈远方。"],
+["星币二","Two of Pentacles","II","星币",["平衡","灵活","权衡"],"同时周旋于多项事务，灵活应变是你的本事，注意保持节奏。","失衡或分身乏术，优先级需要重新排序，别让忙碌淹没重点。"],
+["星币三","Three of Pentacles","III","星币",["合作","技艺","团队"],"各展所长、精诚合作，匠心之作正在成形，成果将赢得认可。","磨合不顺或标准下滑，沟通与专注是修复质量的关键。"],
+["星币四","Four of Pentacles","IV","星币",["稳固","守成","节约"],"紧握已有的成果，财务稳固值得安心，但别让紧握变成僵化。","过度保守或吝啬，松开一点手，财富需要流动才能生长。"],
+["星币五","Five of Pentacles","V","星币",["匮乏","困境","寒冬"],"风雪中感到匮乏与孤立，但援助之手就在不远处，别拒绝温暖。","转机与援手出现，最冷的时刻即将过去，抬头就能看见灯火。"],
+["星币六","Six of Pentacles","VI","星币",["给予","互助","慷慨"],"收支流转、施受平衡，慷慨与感恩让资源流动起来，惠及彼此。","付出失衡或索取无度，检查给予与接受的天平，心安即是富足。"],
+["星币七","Seven of Pentacles","VII","星币",["耐心","评估","深耕"],"种下的种子正在生长，耐心等待并评估方向，深耕终有收获。","急于求成或回报失望，成长需要时间，别在黎明前拔苗助长。"],
+["星币八","Eight of Pentacles","VIII","星币",["精进","技艺","勤勉"],"专注于打磨技艺，日复一日的勤勉正在积累复利，匠心可抵万金。","敷衍了事或倦怠厌烦，找回专注，细节里藏着真正的提升。"],
+["星币九","Nine of Pentacles","IX","星币",["独立","富足","自律"],"凭借自律与才华筑起独立的花园，自给自足，优雅从容。","孤独或过度依赖，独立是礼物而非惩罚，享受属于自己的丰盛。"],
+["星币十","Ten of Pentacles","X","星币",["传承","家族","长久"],"几代人的积累在此汇聚，家族与事业根基稳固，长久的富足正在延续。","财务波动或家族纷争，守护传承需要沟通，根基牢则风雨不惧。"],
+["星币侍从","Page of Pentacles","侍从","星币",["学习","实践","新计划"],"脚踏实地学习新技能，一份务实的计划正在萌芽，从小处做起。","拖延或纸上谈兵，计划再好也要第一步落地，行动治愈焦虑。"],
+["星币骑士","Knight of Pentacles","骑士","星币",["踏实","可靠","稳进"],"一步一个脚印稳步前行，你的可靠终将被看见，慢即是快。","停滞不前或过于保守，适当的冒险能打破沉闷的循环。"],
+["星币皇后","Queen of Pentacles","皇后","星币",["务实","滋养","丰饶"],"把日子过成花园，务实而温暖，既能照顾现实也能滋养身心。","过度操劳或忽视自我，先照顾好自己，你的丰盛才能持续。"],
+["星币国王","King of Pentacles","国王","星币",["成功","稳定","财富"],"财富与地位稳固如山，多年经营开花结果，以实力赢得尊重。","守财奴或固步自封，拥有之外更要懂得享受与分享。"],
+];
+
+/* ══════════════ Spreads ══════════════ */
+const SPREADS = {
+  single: { name:"单张占卜", n:1, slots:[
+    {x:50,y:34,label:"当下指引",mean:"这张牌代表此刻围绕你的核心能量，也是对你问题最直接的回应。"}
+  ]},
+  three: { name:"三张牌阵", n:3, slots:[
+    {x:20,y:40,label:"过去",mean:"这件事的根源与起因，你从何处走来。"},
+    {x:50,y:40,label:"现在",mean:"当下的处境与正在起作用的力量。"},
+    {x:80,y:40,label:"未来",mean:"若保持现状，事情将如何发展。"}
+  ]},
+  celtic: { name:"凯尔特十字", n:10, slots:[
+    {x:38,y:40,label:"① 现状",mean:"问题的核心，当前最主要的处境。"},
+    {x:50,y:40,label:"② 挑战",mean:"横亘在问题之上的阻碍或助力。"},
+    {x:38,y:86,label:"③ 潜意识",mean:"你内心深处的根基与隐藏动机。"},
+    {x:12,y:40,label:"④ 过去",mean:"近期已发生、仍在影响你的事。"},
+    {x:38,y:4,label:"⑤ 目标",mean:"你意识层面的期望与理想状态。"},
+    {x:64,y:40,label:"⑥ 近未来",mean:"短期内即将到来的发展。"},
+    {x:76,y:4,label:"⑦ 自我",mean:"你如何看待自己，内在的态度。"},
+    {x:76,y:40,label:"⑧ 环境",mean:"外界与他人的影响。"},
+    {x:76,y:76,label:"⑨ 希望与恐惧",mean:"你内心深处的渴望与担忧。"},
+    {x:96,y:40,label:"⑩ 结果",mean:"整件事最终的走向与答案。"}
+  ]}
+};
+
+/* ══════════════ State ══════════════ */
+let state = { spread:"single", drawn:[], flipped:0, question:"", fan:[] };
+const $ = id => document.getElementById(id);
+const rand = n => Math.floor(Math.random()*n);
+const shuffleArr = a => { for(let i=a.length-1;i>0;i--){const j=rand(i+1);[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+/* ══════════════ Stage nav ══════════════ */
+let stage = 0;
+function goStage(n){
+  for(let i=0;i<=4;i++) $(`stage${i}`).classList.toggle("hidden", i!==n);
+  for(let i=0;i<=3;i++){ const d=$( `dot${i}`); d.classList.toggle("on", i===n); d.classList.toggle("done", i<n); }
+  stage = n;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ══════════════ Stage 0→1 ══════════════ */
+$("btnStart").onclick = () => goStage(1);
+
+/* ══════════════ Spread select ══════════════ */
+let selSpread = "single";
+document.querySelectorAll(".spread-card").forEach(c=>{
+  c.onclick = () => {
+    document.querySelectorAll(".spread-card").forEach(x=>x.classList.remove("sel"));
+    c.classList.add("sel");
+    selSpread = c.dataset.spread;
+    state.spread = selSpread;
+  };
+});
+$("btnBack0").onclick = () => goStage(0);
+
+/* ══════════════ Stage 2: shuffle ══════════════ */
+function buildDeck(){
+  const deck = $("deck");
+  deck.innerHTML = "";
+  const n = 24;
+  for(let i=0;i<n;i++){
+    const d = document.createElement("div");
+    d.className = "deck-card";
+    d.style.setProperty("--i", i);
+    deck.appendChild(d);
+  }
+}
+$("btnShuffle").onclick = () => {
+  $("questionInput").blur();
+  state.question = $("questionInput").value.trim();
+  buildDeck();
+  const deck = $("deck");
+  deck.classList.add("shuffling");
+  $("btnDraw").disabled = false;
+  $("btnBack1").disabled = false;
+  goStage(2);
+  setTimeout(()=>{ deck.classList.remove("shuffling"); }, 1400);
+};
+$("btnBack1").onclick = () => { $("btnDraw").disabled = true; buildDeck(); };
+
+/* ══════════════ Stage 2→3: user picks cards ══════════════ */
+$("btnDraw").onclick = () => {
+  $("btnDraw").disabled = true;
+  $("btnBack1").disabled = true;
+  buildFan();
+  goStage(3);
+  $("revealSub").textContent = `凭直觉，从牌扇中挑出 ${SPREADS[state.spread].n} 张牌，每张牌对应一个牌位`;
+  renderSlots();
+  renderFan();
+  updatePickHint();
+};
+
+/* ══════════════ Stage 3: joystick cylinder pick ══════════════ */
+let slotWraps = [];
+let cyl = { N:16, R:330, angle:0, vel:0, cards:[], els:[] };
+let cylRaf = null;
+let cylPointerX = null;  // 鼠标在筒内横向位置 0..1，null=离开
+let cylLastX = null;     // 触摸拖动上次 x
+let cylTouchVel = 0;     // 触摸惯性速度
+let cardQueue = [];      // 洗好的剩余牌堆
+
+function buildFan(){
+  const isMobile = window.innerWidth < 760;
+  cyl.N = isMobile ? 10 : 16;
+  cyl.R = isMobile ? 190 : 330;
+  cyl.angle = Math.random() * Math.PI * 2;
+  cyl.vel = 0;
+  cyl.cards = [];
+  cyl.els = [];
+  cardQueue = shuffleArr(DECK.map(c => [...c]));
+  for(let i=0;i<cyl.N;i++){
+    const card = cardQueue.pop();
+    card.reversed = Math.random() < 0.32;
+    cyl.cards.push(card);
+  }
+}
+
+function renderSlots(){
+  const sp = SPREADS[state.spread];
+  const table = $("spreadTable");
+  table.innerHTML = "";
+  slotWraps = [];
+
+  const wrap = document.createElement("div");
+  wrap.style.position = "relative";
+  wrap.style.height = (state.spread==="celtic" ? "520px" : "360px");
+  wrap.style.width = "100%";
+  table.appendChild(wrap); // attach first so offsetWidth is measurable
+
+  const W = wrap.offsetWidth || 860, H = parseFloat(wrap.style.height);
+  const cardW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-w"))||150;
+  const cardH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-h"))||252;
+
+  sp.slots.forEach((s, i) => {
+    const sw = document.createElement("div");
+    sw.className = "slot-wrap";
+    sw.style.left = (s.x/100*W - cardW/2) + "px";
+    sw.style.top  = (s.y/100*H - cardH/2) + "px";
+
+    const empty = document.createElement("div");
+    empty.className = "slot-empty";
+    empty.textContent = "✦";
+
+    const tag = document.createElement("div");
+    tag.className = "pos-tag";
+    tag.textContent = s.label;
+
+    sw.appendChild(empty);
+    sw.appendChild(tag);
+    wrap.appendChild(sw);
+    slotWraps.push(sw);
+  });
+}
+
+function renderFan(){
+  const zone = $("pickZone");
+  zone.innerHTML = "";
+  const cardW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-w"))||150;
+  const cardH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-h"))||252;
+  zone.style.height = (cardH + 96) + "px";
+
+  cyl.cards.forEach((d, i) => {
+    const c = document.createElement("div");
+    c.className = "fan-card";
+    c.dataset.i = i;
+    const back = document.createElement("div");
+    back.className = "card-back";
+    c.appendChild(back);
+    c.onclick = () => pickCard(i, c);
+    zone.appendChild(c);
+    cyl.els.push(c);
+  });
+
+  // 操作提示
+  const tip = document.createElement("div");
+  tip.className = "cyl-tip";
+  tip.innerHTML = "↔ 左右移动鼠标转动牌筒 · <b>归中即停</b> · 点击正面牌选牌";
+  zone.appendChild(tip);
+
+  // 鼠标摇杆：位置决定方向与速度
+  zone.addEventListener("mousemove", e => {
+    const r = zone.getBoundingClientRect();
+    cylPointerX = (e.clientX - r.left) / r.width;
+  });
+  zone.addEventListener("mouseleave", () => { cylPointerX = null; });
+  zone.addEventListener("mousedown", () => zone.classList.add("dragging"));
+  window.addEventListener("mouseup", () => zone.classList.remove("dragging"));
+
+  // 触摸：跟手拖动 + 惯性
+  zone.addEventListener("touchstart", e => {
+    cylLastX = e.touches[0].clientX;
+    cylTouchVel = 0;
+  }, { passive:true });
+  zone.addEventListener("touchmove", e => {
+    const x = e.touches[0].clientX;
+    if(cylLastX !== null){
+      cylTouchVel = (x - cylLastX) * 0.012;
+      cyl.angle += cylTouchVel;
+    }
+    cylLastX = x;
+  }, { passive:true });
+  zone.addEventListener("touchend", () => { cylLastX = null; });
+
+  positionCylinder();
+  cylRaf = requestAnimationFrame(cylLoop);
+}
+
+let lastCylT = 0;
+function cylLoop(t){
+  const dt = lastCylT ? Math.min(0.05, (t - lastCylT)/1000) : 0.016;
+  lastCylT = t;
+  // 摇杆控速：指针偏右→正转，偏左→反转，居中→停
+  let target = 0;
+  if(cylPointerX !== null){
+    target = (cylPointerX - 0.5) * 2 * 3.2;   // 最大约 3.2 rad/s
+  }
+  cyl.vel += (target - cyl.vel) * 0.3;    // 归中后快速停稳
+  cyl.angle += cyl.vel * dt;
+  // 触摸惯性衰减
+  if(cylLastX === null && cylTouchVel !== 0){
+    cyl.angle += cylTouchVel;
+    cylTouchVel *= 0.95;
+    if(Math.abs(cylTouchVel) < 0.0005) cylTouchVel = 0;
+  }
+  positionCylinder();
+  cylRaf = requestAnimationFrame(cylLoop);
+}
+
+function positionCylinder(){
+  const zone = $("pickZone");
+  const cardW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-w"))||150;
+  const cardH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-h"))||252;
+  const cx = zone.clientWidth / 2;
+  const cy = (zone.clientHeight - cardH) / 2 - 10;
+  const step = 2*Math.PI / cyl.N;
+  cyl.els.forEach((c, i) => {
+    let a = cyl.angle + i*step;
+    a = ((a + Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI) - Math.PI; // 归一到 -π..π
+    const depth = Math.cos(a);            // 1=正对屏幕，-1=背对
+    const x = cx + cyl.R * Math.sin(a) - cardW/2;
+    const depthN = (depth + 1) / 2;       // 0..1
+    const scale = 0.55 + 0.45 * depthN;   // 近大远小
+    const opacity = depth > -0.05 ? Math.min(1, (depth + 0.05) / 0.5) : 0;
+    c.style.transform = `translate(${x}px, ${cy}px) scale(${scale})`;
+    c.style.opacity = String(opacity);
+    c.style.zIndex = Math.round(depth * 100);
+    c.style.pointerEvents = depth > 0.15 ? "auto" : "none";
+  });
+}
+
+function stopCylinder(){
+  if(cylRaf) cancelAnimationFrame(cylRaf);
+  cylRaf = null;
+  cylPointerX = null;
+}
+
+function pickCard(i, el){
+  const sp = SPREADS[state.spread];
+  if(state.drawn.length >= sp.n) return;
+  const card = cyl.cards[i];
+  state.drawn.push(card);
+  const slotWrap = slotWraps[state.drawn.length - 1];
+  flyToSlot(el, slotWrap, card);   // 幽灵牌飞向牌位
+  // 补一张新牌：背面看不见，筒里牌永远转不完
+  if(cardQueue.length){
+    const nc = cardQueue.pop();
+    nc.reversed = Math.random() < 0.32;
+    cyl.cards[i] = nc;
+  } else {
+    cyl.cards.splice(i, 1);
+    cyl.els.splice(i, 1);
+    el.remove();
+  }
+  updatePickHint();
+}
+
+function flyToSlot(el, slotWrap, card){
+  const cr = el.getBoundingClientRect();
+  const sr = slotWrap.getBoundingClientRect();
+  const ghost = el.cloneNode(true);
+  ghost.style.cssText = "";
+  ghost.style.position = "fixed";
+  ghost.style.left = cr.left + "px";
+  ghost.style.top = cr.top + "px";
+  ghost.style.width = cr.width + "px";
+  ghost.style.height = cr.height + "px";
+  ghost.style.zIndex = 999;
+  ghost.style.margin = "0";
+  ghost.style.pointerEvents = "none";
+  ghost.style.transition = "transform .85s cubic-bezier(.25,.6,.25,1), opacity .85s";
+  document.body.appendChild(ghost);
+  void ghost.offsetWidth; // force reflow, then fly
+  const dx = sr.left - cr.left + (sr.width - cr.width)/2;
+  const dy = sr.top  - cr.top  + (sr.height - cr.height)/2;
+  ghost.style.transform = `translate(${dx}px, ${dy}px) scale(.86) rotate(6deg)`;
+  ghost.style.opacity = ".35";
+  setTimeout(() => {
+    ghost.remove();
+    landCard(slotWrap, card);
+  }, 850);
+}
+
+function landCard(slotWrap, card){
+  slotWrap.querySelector(".slot-empty")?.remove();
+  const c = document.createElement("div");
+  c.className = "draw-card face-down";
+  const inner = document.createElement("div");
+  inner.className = "card3d";
+  const back = document.createElement("div");
+  back.className = "card-back";
+  const face = document.createElement("div");
+  face.className = "card-face" + (card.reversed ? " rev" : "");
+  const isMajor = card[3] === "大";
+  face.innerHTML = `
+    <div class="num">${card[2]}</div>
+    <div class="suit">${isMajor ? "" : SUIT_GLYPH[card[3]]}</div>
+    <div class="glyph">${isMajor ? MAJOR_GLYPH[card[2]] : SUIT_SVG[card[3]]}</div>
+    <div class="cname">${card[0]}</div>
+    <div class="cname-en">${card[1]}</div>`;
+  inner.appendChild(back);
+  inner.appendChild(face);
+  c.appendChild(inner);
+  slotWrap.appendChild(c);
+  slotWrap.classList.add("flipped");
+  setTimeout(() => c.classList.add("flipped"), 140);
+  showToast(`${card[0]} · ${card.reversed ? "逆位" : "正位"} — ${card[4][0]}`);
+}
+
+function updatePickHint(){
+  const sp = SPREADS[state.spread];
+  const n = state.drawn.length;
+  if(n >= sp.n){
+    $("revealHint").textContent = "所有牌位已落定，星光已为你拼出全貌";
+    $("reportBtnRow").classList.remove("hidden");
+    stopCylinder();
+    document.querySelectorAll(".fan-card").forEach(c => c.classList.add("done"));
+  } else {
+    const next = sp.slots[n];
+    $("reportBtnRow").classList.add("hidden");
+    $("revealHint").textContent = `已选 ${n} / ${sp.n} 张 · 请为「${next.label}」挑选下一张`;
+  }
+}
+
+/* ══════════════ Stage 3→4: report ══════════════ */
+const ELEM_THEME = { "权杖":"火元素 · 行动与激情", "圣杯":"水元素 · 情感与直觉", "宝剑":"风元素 · 思维与抉择", "星币":"土元素 · 现实与物质" };
+const ELEM_DESC = {
+  "权杖":"火元素能量充沛，说明这件事需要你拿出行动力与热情，主动出击。",
+  "圣杯":"水元素主导，情感与直觉是解开问题的钥匙，先倾听内心。",
+  "宝剑":"风元素当道，理性分析与清晰沟通至关重要，真相需要用头脑厘清。",
+  "星币":"土元素厚重，现实基础与物质条件决定成败，请务实推进。"
+};
+
+$("btnReport").onclick = () => { goStage(4); renderReport(); };
+$("btnReportRedo").onclick = $("btnRedo").onclick = resetAll;
+$("btnPrint").onclick = () => window.print();
+
+function renderReport(){
+  const sp = SPREADS[state.spread];
+  const drawn = state.drawn;
+  const root = $("report");
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  const uprightN = drawn.filter(d=>!d.reversed).length;
+  const reversedN = drawn.length - uprightN;
+
+  /* element counts */
+  const counts = { "权杖":0, "圣杯":0, "宝剑":0, "星币":0 };
+  let majors = 0;
+  drawn.forEach(d=>{ if(d[3]==="大"){majors++;} else {counts[d[3]]++;} });
+  const dominant = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  const domElem = dominant && dominant[1]>0 ? dominant[0] : null;
+
+  /* card items */
+  let cardsHtml = sp.slots.map((s,i)=>{
+    const d = drawn[i];
+    const isMajor = d[3]==="大";
+    const ori = d.reversed ? "reversed" : "upright";
+    const oriTxt = d.reversed ? "逆位" : "正位";
+    const meaning = d.reversed ? d[6] : d[5];
+    return `<div class="card-item">
+      <div class="thumb ${ori}">
+        <div class="suit">${isMajor?"":SUIT_GLYPH[d[3]]}</div>
+        <div class="glyph">${isMajor?MAJOR_GLYPH[d[2]]:SUIT_SVG[d[3]]}</div>
+        <div class="tname">${d[0]}</div>
+      </div>
+      <div class="body">
+        <h4>${s.label} · ${d[0]}</h4>
+        <div class="pos-name">${d[1]}${isMajor?" · 大阿卡纳":" · "+d[3]}</div>
+        <span class="ori ${ori}">${oriTxt}</span>
+        <div class="kws">${d[4].map(k=>"✦ "+k).join("  ")}</div>
+        <p><b>牌位含义：</b>${s.mean}</p>
+        <p><b>${oriTxt}解读：</b>${meaning}</p>
+      </div>
+    </div>`;
+  }).join("");
+
+  /* synthesis paragraphs */
+  const p = [];
+  const first = drawn[0];
+  const firstMeaning = first.reversed ? first[6] : first[5];
+
+  // lead
+  const tone = uprightN > reversedN
+    ? `整副牌阵${uprightN===drawn.length?"全部正位":"以正位为主"}，能量流动顺畅，星光对你颇为眷顾`
+    : uprightN===reversedN
+      ? "整副牌阵正逆均衡，吉凶参半，选择权牢牢握在你手中"
+      : `整副牌阵以逆位居多，当下的课题需要你更多耐心与内省`;
+  p.push(`<p class="lead">${tone}。牌阵的第一张牌「${first[0]}」${first.reversed?"逆位":"正位"}出现，${firstMeaning}</p>`);
+
+  // dominant element / majors
+  if(domElem && !(drawn.length===1 && drawn[0][3]==="大")){
+    p.push(`<p>纵观整副牌阵，${ELEM_THEME[domElem]}的力量最为突出。${ELEM_DESC[domElem]}</p>`);
+  }
+  if(majors>0){
+    const majorNames = drawn.filter(d=>d[3]==="大").map(d=>d[0]).join("、");
+    p.push(`<p>牌阵中出现${majors}张${majors>1?"大阿卡纳":"大阿卡纳"}（${majorNames}），这是命运在放大这一课题的信号——它不只是琐事，而是你人生阶段的重要章节，值得认真对待。</p>`);
+  }
+  if(drawn.length>=3){
+    // flow reading for three-card
+    if(state.spread==="three"){
+      const [pa,cu,fu] = drawn;
+      p.push(`<p>从时间线上看，<b>过去</b>的「${pa[0]}」${pa.reversed?"逆位":"正位"}奠定了事情的底色：${pa.reversed?pa[6]:pa[5]} <b>现在</b>的「${cu[0]}」${cu.reversed?"逆位":"正位"}则揭示了当下正在起作用的力量：${cu.reversed?cu[6]:cu[5]} 循此轨迹，<b>未来</b>的「${fu[0]}」${fu.reversed?"逆位":"正位"}暗示：${fu.reversed?fu[6]:fu[5]}</p>`);
+    }
+    if(state.spread==="celtic"){
+      const [nowC,chall,_,past,goal,__,selfC,env,hopes,result] = drawn;
+      p.push(`<p>问题的核心落在「${nowC[0]}」上，${nowC.reversed?nowC[6]:nowC[5]} 而最大的挑战来自「${chall[0]}」——${chall.reversed?chall[6]:chall[5]}。回到起点，过去的「${past[0]}」仍在施加影响：${past.reversed?past[6]:past[5]} 你心中向往的「${goal[0]}」则指向：${goal.reversed?goal[6]:goal[5]}</p>`);
+      p.push(`<p>你如何看待自己，决定了你能走多远——「${selfC[0]}」${selfC.reversed?"逆位":"正位"}提示你：${selfC.reversed?selfC[6]:selfC[5]} 而环境与他人的影响集中在「${env[0]}」上：${env.reversed?env[6]:env[5]} 你内心深处的希望与恐惧，则由「${hopes[0]}」代言：${hopes.reversed?hopes[6]:hopes[5]}</p>`);
+      p.push(`<p>最终，所有线索汇聚成「${result[0]}」——${result.reversed?result[6]:result[5]} 这是牌阵给出的最终答案，也是星光为你指出的落点。</p>`);
+    }
+  }
+  if(state.question){
+    p.push(`<p>回到你的问题「${state.question}」——牌阵的指引并非预言定局，而是提醒你：看清现状、善用优势、正视阻碍，答案就在你每一次选择之中。</p>`);
+  } else {
+    p.push(`<p>这份指引并非预言定局，而是提醒你：看清现状、善用优势、正视阻碍，答案就在你每一次选择之中。</p>`);
+  }
+
+  /* advice */
+  const kwPool = [];
+  drawn.forEach(d=>{ d[4].forEach(k=>kwPool.push(k)); });
+  const advice = [];
+  const used = new Set();
+  const pick = ()=> { const k = kwPool[rand(kwPool.length)]; if(used.has(k)) return pick(); used.add(k); return k; };
+  const a1 = pick(), a2 = pick();
+  const advTone = uprightN>=reversedN ? "顺势而为" : "静待时机";
+  advice.push({t:"行动建议", p:`<p>整体能量偏向「${advTone}」。近期请围绕 <b>${a1}</b> 展开行动，同时留意 <b>${a2}</b> 带来的提示，让每一次选择都更贴近内心。</p>`});
+  if(domElem) advice.push({t:"元素提示", p:`<p>牌阵中${ELEM_THEME[domElem]}能量最强，${ELEM_DESC[domElem].replace("。","，")} 把它作为近期决策的底色。</p>`});
+  advice.push({t:"心念指引", p:`<p>占卜的意义在于照见，而非束缚。无论牌面如何，请记得：你永远拥有重新选择的权利，星光只是陪你走夜路的朋友。</p>`});
+
+  root.innerHTML = `
+    <div class="report-head">
+      <div class="goldline"></div>
+      <h2 class="title">${sp.name} · 解读报告</h2>
+      ${state.question?`<div class="q">「${state.question}」</div>`:`<div class="q">整体运势指引</div>`}
+      <div class="meta">${dateStr} · 共${drawn.length}张牌 · 正位${uprightN} · 逆位${reversedN}</div>
+    </div>
+
+    <div class="sec-title">✦ 牌阵详解</div>
+    <div class="card-list">${cardsHtml}</div>
+
+    <div class="sec-title">✦ 综合解读</div>
+    <div class="analysis">${p.join("")}</div>
+
+    <div class="sec-title">✦ 行动建议</div>
+    <div class="advice">${advice.map(a=>`<div class="a"><div class="at">— ${a.t} —</div>${a.p}</div>`).join("")}</div>`;
+}
+
+/* ══════════════ Reset ══════════════ */
+function resetAll(){
+  state = { spread: selSpread, drawn:[], flipped:0, question:"", fan:[] };
+  slotWraps = [];
+  cyl = { N:16, R:330, angle:0, vel:0, cards:[], els:[] };
+  stopCylinder();
+  $("questionInput").value = "";
+  $("btnDraw").disabled = true;
+  $("reportBtnRow").classList.add("hidden");
+  $("spreadTable").innerHTML = "";
+  $("pickZone").innerHTML = "";
+  goStage(1);
+}
+
+/* ══════════════ Toast ══════════════ */
+let toastTimer;
+function showToast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+/* init */
+buildDeck();
+</script>
+</body>
+</html>
