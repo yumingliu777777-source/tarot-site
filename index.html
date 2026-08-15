@@ -271,7 +271,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 .history-list{display:grid;gap:10px}.history-item{display:grid;grid-template-columns:104px 1fr auto;gap:14px;align-items:center;padding:14px 16px;background:var(--panel);border:1px solid var(--line)}.history-item h4{font-family:var(--serif);color:var(--gold-hi);font-weight:500;letter-spacing:.08em}.history-item p{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.55}.history-item time{font-size:11px;color:var(--gold-dim);white-space:nowrap}
 .dict-toolbar{display:flex;gap:10px;margin-bottom:18px}.dict-search{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);padding:12px 14px;font:14px var(--sans);outline:none}.dict-search:focus{border-color:var(--gold)}.dict-filter{background:var(--panel);color:var(--muted);border:1px solid var(--line);padding:0 10px;font:13px var(--sans)}
 .dict-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}.dict-item{background:var(--panel);border:1px solid var(--line);padding:15px}.dict-item h4{font-family:var(--serif);color:var(--gold-hi);letter-spacing:.08em}.dict-item .en{font-size:10px;color:var(--gold-dim);letter-spacing:.12em;margin:4px 0 9px}.dict-item .kws{font-size:11px;color:var(--gold);margin-bottom:8px}.dict-item p{font-size:12px;color:var(--muted);line-height:1.7}.share-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:24px}
-.api-form{display:grid;gap:14px}.api-form label{display:grid;gap:7px;font-size:12px;letter-spacing:.12em;color:var(--muted)}.api-form input{width:100%;background:var(--panel);border:1px solid var(--line);padding:12px;color:var(--ink);font:14px var(--sans);outline:none}.api-form input:focus{border-color:var(--gold)}.api-note{font-size:12px;color:var(--muted);line-height:1.75}.api-analysis{background:var(--panel);border:1px solid rgba(123,108,214,.4);padding:24px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-size:14px}.api-analysis.loading{color:var(--muted)}
+.api-form{display:grid;gap:14px}.api-form label{display:grid;gap:7px;font-size:12px;letter-spacing:.12em;color:var(--muted)}.api-form input,.api-form select{width:100%;background:var(--panel);border:1px solid var(--line);padding:12px;color:var(--ink);font:14px var(--sans);outline:none}.api-form input:focus,.api-form select:focus{border-color:var(--gold)}.api-note{font-size:12px;color:var(--muted);line-height:1.75}.api-analysis{background:var(--panel);border:1px solid rgba(123,108,214,.4);padding:24px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-size:14px}.api-analysis.loading{color:var(--muted)}
 @media (max-width:760px){
   .spread-grid{grid-template-columns:1fr;max-width:420px}
   .card-list{grid-template-columns:1fr}
@@ -1174,6 +1174,49 @@ function openModal(kind){
   $("toolModal").classList.remove("hidden");
 }
 function closeModal(){ $("toolModal").classList.add("hidden"); }
+const PROVIDER_DEFAULTS = {
+  openai:{label:"OpenAI 兼容（OpenAI / DeepSeek / 通义 / Kimi / 智谱等）",endpoint:"https://api.openai.com/v1",model:"gpt-4o-mini"},
+  gemini:{label:"Google Gemini",endpoint:"https://generativelanguage.googleapis.com/v1beta",model:"gemini-2.0-flash"},
+  anthropic:{label:"Anthropic Claude",endpoint:"https://api.anthropic.com/v1",model:"claude-3-5-haiku-latest"},
+  ollama:{label:"本地 Ollama",endpoint:"http://localhost:11434",model:"llama3.2"}
+};
+function modelTextFromResponse(provider, data){
+  if(provider === "gemini") return data?.candidates?.[0]?.content?.parts?.map(part=>part.text||"").join("");
+  if(provider === "anthropic") return data?.content?.map(part=>part.text||"").join("");
+  if(provider === "ollama") return data?.message?.content;
+  return data?.choices?.[0]?.message?.content;
+}
+async function requestModel(config, key){
+  const provider=config.provider||"openai", base=config.endpoint.replace(/\/$/,""); let url, headers={"Content-Type":"application/json"}, body;
+  if(provider === "gemini") { url=`${base}/models/${config.model}:generateContent?key=${encodeURIComponent(key)}`; body={contents:[{parts:[{text:apiPrompt()}]}],generationConfig:{temperature:.75}}; }
+  else if(provider === "anthropic") { url=`${base}/messages`; headers={...headers,"x-api-key":key,"anthropic-version":"2023-06-01"}; body={model:config.model,max_tokens:1800,temperature:.75,messages:[{role:"user",content:apiPrompt()}]}; }
+  else if(provider === "ollama") { url=`${base}/api/chat`; body={model:config.model,stream:false,messages:[{role:"system",content:"你以中文提供关怀、清晰且负责任的塔罗解读。"},{role:"user",content:apiPrompt()}]}; }
+  else { url=`${base}/chat/completions`; headers.Authorization=`Bearer ${key}`; body={model:config.model,messages:[{role:"system",content:"你以中文提供关怀、清晰且负责任的塔罗解读。"},{role:"user",content:apiPrompt()}],temperature:.75}; }
+  const response=await fetch(url,{method:"POST",headers,body:JSON.stringify(body)});
+  if(!response.ok) throw new Error(`接口返回 ${response.status}`);
+  const text=modelTextFromResponse(provider,await response.json());
+  if(!text) throw new Error("接口未返回解读内容");
+  return text;
+}
+async function generateAiReportV2(){
+  if(!state.drawn.length) return;
+  const config=readApiConfig(), provider=config.provider||"openai", key=sessionStorage.getItem(API_KEY_SESSION)||"";
+  if(!config.endpoint || !config.model || (provider!=="ollama"&&!key)){ openApiSettings(); showToast("请先完成 AI 接口设置"); return; }
+  const root=$("report"); let panel=$("aiAnalysis");
+  if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
+  const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
+  try{output.textContent=await requestModel(config,key);output.className="api-analysis";}catch(error){output.className="api-analysis";output.textContent=`AI 解读暂时无法生成：${error.message}。请检查接口地址、模型名称、密钥和 CORS 设置。`;}
+}
+function openApiSettings(){
+  const content=$("toolContent"), config={provider:"openai",...readApiConfig()};
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">AI 接口设置</h2><p class="modal-sub">支持云端模型与本地模型。请求由浏览器直接发送到你配置的接口。</p><form class="api-form" id="apiForm"><label>服务商<select id="apiProvider">${Object.entries(PROVIDER_DEFAULTS).map(([id,item])=>`<option value="${id}" ${config.provider===id?"selected":""}>${item.label}</option>`).join("")}</select></label><label>接口 Base URL<input id="apiEndpoint" type="url" required value="${escapeHtml(config.endpoint||"")}"></label><label>模型名称<input id="apiModel" required value="${escapeHtml(config.model||"")}"></label><label>API Key<input id="apiKey" type="password" placeholder="Ollama 可留空"></label><p class="api-note" id="apiHelp">密钥仅保存在当前浏览器会话中。OpenAI 兼容模式适用于 DeepSeek、通义千问、Kimi、智谱等提供 Chat Completions 的服务。</p><div class="btn-row"><button class="btn primary" type="submit">保存并启用</button></div></form>`;
+  const provider=$("apiProvider"), endpoint=$("apiEndpoint"), model=$("apiModel"), key=$("apiKey"), help=$("apiHelp");
+  const setDefaults=()=>{const item=PROVIDER_DEFAULTS[provider.value]; endpoint.value=item.endpoint; model.value=item.model; key.required=provider.value!=="ollama"; help.textContent=provider.value==="ollama"?"本地 Ollama 默认无需密钥。请确认本机服务已启动并允许网页跨域访问。":"密钥仅保存在当前浏览器会话中。接口需允许 GitHub Pages 的跨域请求。";};
+  provider.onchange=setDefaults; key.required=provider.value!=="ollama";
+  $("apiForm").onsubmit=event=>{event.preventDefault();const saved={provider:provider.value,endpoint:endpoint.value.trim().replace(/\/$/,""),model:model.value.trim()};localStorage.setItem(API_CONFIG_KEY,JSON.stringify(saved));sessionStorage.setItem(API_KEY_SESSION,key.value.trim());closeModal();showToast("AI 接口已启用");};
+  $("toolModal").classList.remove("hidden");
+}
+
 function goHome(){
   stopCylinder();
   state={spread:"single",drawn:[],flipped:0,question:"",fan:[]};
@@ -1182,7 +1225,7 @@ function goHome(){
   closeModal();
   goStage(0);
 }
-$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=()=>openModal("api"); $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
+$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnAiReport").onclick=generateAiReportV2; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
 
 /* init */
 buildDeck();
