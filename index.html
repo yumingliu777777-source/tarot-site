@@ -70,6 +70,9 @@ body{
 /* ── Layout ─────────────────────────────────────────── */
 .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:28px 20px 80px}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px}
+.header-tools{display:flex;align-items:center;gap:8px}
+.tool-btn{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:rgba(17,17,26,.82);color:var(--gold);cursor:pointer;font-size:15px;transition:all .25s var(--ease)}
+.tool-btn:hover{border-color:var(--gold);color:var(--gold-hi);transform:translateY(-2px)}
 .brand{display:flex;align-items:center;gap:12px}
 .brand .sigil{width:38px;height:38px;border:1px solid var(--line);border-radius:50%;
   display:grid;place-items:center;color:var(--gold);font-size:20px;
@@ -257,6 +260,16 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
   font-size:13px;letter-spacing:.15em;padding:12px 26px;border-radius:2px;z-index:99;
   opacity:0;transition:all .4s var(--ease);pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Companion tools */
+.modal{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;background:rgba(3,3,7,.78);backdrop-filter:blur(8px)}
+.modal-panel{width:min(900px,100%);max-height:min(820px,calc(100vh - 40px));overflow:auto;background:var(--bg2);border:1px solid rgba(201,169,87,.38);border-radius:6px;box-shadow:0 24px 80px rgba(0,0,0,.65);padding:28px;position:relative}
+.modal-close{position:absolute;right:16px;top:16px;width:32px;height:32px;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--muted);font-size:18px;cursor:pointer}
+.modal-close:hover{color:var(--gold-hi);border-color:var(--gold)}
+.modal-title{font-family:var(--serif);font-size:22px;color:var(--gold-hi);letter-spacing:.18em;margin-bottom:8px;padding-right:40px}.modal-sub{font-size:12px;color:var(--muted);letter-spacing:.08em;line-height:1.8;margin-bottom:22px}
+.daily-card{display:grid;grid-template-columns:130px 1fr;gap:24px;align-items:center;background:var(--panel);border:1px solid var(--line);padding:22px}.daily-card .thumb{width:110px;height:180px;margin:auto;background:linear-gradient(170deg,#f5efe0,#e6dcc4);border:1px solid #c9b980;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#2c2410}.daily-card .thumb .suit{font-size:18px;color:#8a6d2f}.daily-card .thumb .glyph{font-size:28px;color:#6d5a24}.daily-card .thumb .tname{font:11px var(--serif);letter-spacing:.08em;margin-top:4px}.daily-card .thumb.rev .glyph{transform:rotate(180deg)}.daily-card h3{font-family:var(--serif);color:var(--gold-hi);font-size:20px;letter-spacing:.12em}.daily-card p{font-size:13px;color:var(--muted);line-height:1.85;margin-top:10px}.daily-card .kws{color:var(--gold);font-size:12px;margin-top:10px}
+.history-list{display:grid;gap:10px}.history-item{display:grid;grid-template-columns:104px 1fr auto;gap:14px;align-items:center;padding:14px 16px;background:var(--panel);border:1px solid var(--line)}.history-item h4{font-family:var(--serif);color:var(--gold-hi);font-weight:500;letter-spacing:.08em}.history-item p{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.55}.history-item time{font-size:11px;color:var(--gold-dim);white-space:nowrap}
+.dict-toolbar{display:flex;gap:10px;margin-bottom:18px}.dict-search{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);padding:12px 14px;font:14px var(--sans);outline:none}.dict-search:focus{border-color:var(--gold)}.dict-filter{background:var(--panel);color:var(--muted);border:1px solid var(--line);padding:0 10px;font:13px var(--sans)}
+.dict-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}.dict-item{background:var(--panel);border:1px solid var(--line);padding:15px}.dict-item h4{font-family:var(--serif);color:var(--gold-hi);letter-spacing:.08em}.dict-item .en{font-size:10px;color:var(--gold-dim);letter-spacing:.12em;margin:4px 0 9px}.dict-item .kws{font-size:11px;color:var(--gold);margin-bottom:8px}.dict-item p{font-size:12px;color:var(--muted);line-height:1.7}.share-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:24px}
 @media (max-width:760px){
   .spread-grid{grid-template-columns:1fr;max-width:420px}
   .card-list{grid-template-columns:1fr}
@@ -269,6 +282,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
   .moon{width:80px;height:80px;top:6vh;right:6vw}
   .steps{grid-template-columns:1fr}
   .intro-block{padding:20px 20px 18px}
+  .header-tools{gap:5px}.tool-btn{width:30px;height:30px;font-size:13px}.modal-panel{padding:22px 16px}.daily-card{grid-template-columns:1fr}.daily-card .thumb{height:150px;width:92px}.history-item{grid-template-columns:1fr}.history-item time{grid-row:1}.dict-toolbar{flex-wrap:wrap}.dict-filter{height:40px}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -287,6 +301,11 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
         <h1>星夜塔罗</h1>
         <small>LUNAR TAROT</small>
       </div>
+    </div>
+    <div class="header-tools" aria-label="塔罗工具">
+      <button class="tool-btn" id="btnDaily" title="每日一签" aria-label="每日一签">☀</button>
+      <button class="tool-btn" id="btnHistory" title="抽牌历史" aria-label="抽牌历史">◷</button>
+      <button class="tool-btn" id="btnDict" title="牌意词典" aria-label="牌意词典">⌕</button>
     </div>
     <div class="step-dots">
       <div class="dot on" id="dot0"></div>
@@ -349,6 +368,30 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
         <p>十张牌的深度阵型，全方位剖析问题根源、阻碍与最终结果。</p>
         <span class="pos">深度 · 完整</span>
       </div>
+      <div class="spread-card" data-spread="choice">
+        <div class="mini"><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div></div>
+        <h3>二选一</h3>
+        <p>将两个选项分别摊开，比较路径、提醒与建议，理清当下更适合你的方向。</p>
+        <span class="pos">选项 A · 选项 B · 建议</span>
+      </div>
+      <div class="spread-card" data-spread="love">
+        <div class="mini"><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div></div>
+        <h3>爱情十字</h3>
+        <p>从你的心意、对方状态、关系阻碍与发展方向，照见一段关系的真相。</p>
+        <span class="pos">情感 · 阻碍 · 发展</span>
+      </div>
+      <div class="spread-card" data-spread="career">
+        <div class="mini"><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div><div class="mcard"></div></div>
+        <h3>事业分析</h3>
+        <p>聚焦职业现状、优势、挑战与下一步行动，给工作与发展一份清晰提示。</p>
+        <span class="pos">现状 · 优势 · 挑战 · 行动</span>
+      </div>
+      <div class="spread-card" data-spread="year">
+        <div class="mini"><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div><div class="mcard"></div><div class="mcard back"></div></div>
+        <h3>年度展望</h3>
+        <p>回看年度基调，并从机会、挑战、关系与成果五个角度，迎接新的周期。</p>
+        <span class="pos">基调 · 机会 · 挑战 · 成果</span>
+      </div>
     </div>
     <div class="btn-row">
       <button class="btn ghost" id="btnBack0">返回</button>
@@ -393,10 +436,19 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
     <div class="report" id="report"></div>
     <div class="btn-row">
       <button class="btn ghost" id="btnReportRedo">重新占卜</button>
+      <button class="btn ghost" id="btnCopyShare">复制分享链接</button>
+      <button class="btn ghost" id="btnShareCard">生成分享卡</button>
       <button class="btn primary" id="btnPrint">打印 / 保存报告</button>
     </div>
     <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，不构成专业建议，请理性看待<br>它给不了你答案，却能陪你照见内心 —— 选择权永远在你</p>
   </section>
+</div>
+
+<div class="modal hidden" id="toolModal" role="dialog" aria-modal="true" aria-labelledby="toolTitle">
+  <div class="modal-panel">
+    <button class="modal-close" id="btnCloseModal" aria-label="关闭">×</button>
+    <div id="toolContent"></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -520,6 +572,34 @@ const SPREADS = {
 };
 
 /* ══════════════ State ══════════════ */
+Object.assign(SPREADS, {
+  choice:{name:"二选一",n:3,slots:[
+    {x:22,y:40,label:"选项 A",mean:"选择这条路时，你最先会感受到的能量与发展。"},
+    {x:78,y:40,label:"选项 B",mean:"另一条路呈现的氛围、代价或潜在收获。"},
+    {x:50,y:78,label:"核心建议",mean:"帮助你作出符合内心与现实的选择。"}
+  ]},
+  love:{name:"爱情十字",n:5,slots:[
+    {x:50,y:40,label:"你的心意",mean:"你在这段关系里真实的感受与需求。"},
+    {x:50,y:10,label:"对方状态",mean:"对方此刻的情感状态或表达方式。"},
+    {x:22,y:40,label:"关系基础",mean:"这段关系正在依靠的连结与基础。"},
+    {x:78,y:40,label:"阻碍与课题",mean:"需要被看见、沟通或跨越的部分。"},
+    {x:50,y:76,label:"发展建议",mean:"让关系更健康前进的温柔行动。"}
+  ]},
+  career:{name:"事业分析",n:4,slots:[
+    {x:20,y:40,label:"事业现状",mean:"当前工作与发展处境的核心能量。"},
+    {x:43,y:40,label:"你的优势",mean:"此刻最值得发挥的能力或资源。"},
+    {x:66,y:40,label:"挑战所在",mean:"需要正视、调整或补足的课题。"},
+    {x:89,y:40,label:"下一步",mean:"帮助你稳步向前的务实行动。"}
+  ]},
+  year:{name:"年度展望",n:5,slots:[
+    {x:12,y:40,label:"年度基调",mean:"贯穿这一周期的主旋律与学习。"},
+    {x:31,y:40,label:"机会",mean:"值得主动把握的新窗口与资源。"},
+    {x:50,y:40,label:"挑战",mean:"促使你成长、需要谨慎面对的部分。"},
+    {x:69,y:40,label:"关系",mean:"人际、亲密关系与合作中的提示。"},
+    {x:88,y:40,label:"年度成果",mean:"持续投入后可能抵达的收获与落点。"}
+  ]}
+});
+
 let state = { spread:"single", drawn:[], flipped:0, question:"", fan:[] };
 const $ = id => document.getElementById(id);
 const rand = n => Math.floor(Math.random()*n);
@@ -619,7 +699,7 @@ function renderSlots(){
 
   const wrap = document.createElement("div");
   wrap.style.position = "relative";
-  wrap.style.height = (state.spread==="celtic" ? "520px" : "360px");
+  wrap.style.height = (["celtic","love"].includes(state.spread) ? "520px" : state.spread==="choice" ? "460px" : "360px");
   wrap.style.width = "100%";
   table.appendChild(wrap); // attach first so offsetWidth is measurable
 
@@ -846,9 +926,11 @@ const ELEM_DESC = {
   "星币":"土元素厚重，现实基础与物质条件决定成败，请务实推进。"
 };
 
-$("btnReport").onclick = () => { goStage(4); renderReport(); };
+$("btnReport").onclick = () => { goStage(4); renderReport(); saveReading(); };
 $("btnReportRedo").onclick = $("btnRedo").onclick = resetAll;
 $("btnPrint").onclick = () => window.print();
+$("btnCopyShare").onclick = copyShareLink;
+$("btnShareCard").onclick = downloadShareCard;
 
 function renderReport(){
   const sp = SPREADS[state.spread];
@@ -984,8 +1066,84 @@ function showToast(msg){
   toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
 }
 
+/* Reader tools and local memory */
+const HISTORY_KEY = "lunar-tarot-history-v1";
+const DAILY_KEY = "lunar-tarot-daily-v1";
+const cardByName = name => DECK.find(card => card[0] === name);
+const safeRead = key => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } };
+const safeWrite = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+const localDay = () => new Date().toLocaleDateString("sv-SE");
+const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[char]));
+
+function readingPayload(){
+  return { v:1, spread:state.spread, question:state.question, at:new Date().toISOString(), cards:state.drawn.map(card => ({name:card[0], reversed:!!card.reversed})) };
+}
+function saveReading(){
+  if(!state.drawn.length) return;
+  const record = readingPayload();
+  const history = safeRead(HISTORY_KEY);
+  if(!history.length || JSON.stringify(history[0].cards) !== JSON.stringify(record.cards) || history[0].question !== record.question){
+    history.unshift(record);
+    safeWrite(HISTORY_KEY, history.slice(0,80));
+  }
+}
+function payloadToState(payload){
+  if(!payload || !SPREADS[payload.spread] || !Array.isArray(payload.cards)) return false;
+  const cards = payload.cards.map(item => { const card = cardByName(item.name); return card ? Object.assign([...card], {reversed:!!item.reversed}) : null; }).filter(Boolean);
+  if(cards.length !== SPREADS[payload.spread].n) return false;
+  state = {spread:payload.spread, drawn:cards, flipped:cards.length, question:payload.question || "", fan:[]};
+  selSpread = payload.spread;
+  return true;
+}
+function encodePayload(payload){ return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))); }
+function decodePayload(value){ try { return JSON.parse(decodeURIComponent(escape(atob(value)))); } catch { return null; } }
+function copyText(value){
+  if(navigator.clipboard && location.protocol !== "file:") return navigator.clipboard.writeText(value);
+  const input = document.createElement("textarea"); input.value = value; document.body.appendChild(input); input.select(); document.execCommand("copy"); input.remove(); return Promise.resolve();
+}
+function copyShareLink(){
+  const link = `${location.href.split("#")[0]}#r=${encodePayload(readingPayload())}`;
+  copyText(link).then(() => showToast("分享链接已复制")).catch(() => showToast("复制失败，请手动复制地址栏链接"));
+}
+function downloadShareCard(){
+  if(!state.drawn.length) return;
+  const canvas = document.createElement("canvas"), ctx = canvas.getContext("2d");
+  canvas.width = 1200; canvas.height = 630;
+  const bg = ctx.createLinearGradient(0,0,1200,630); bg.addColorStop(0,"#090911"); bg.addColorStop(1,"#1b1630"); ctx.fillStyle=bg; ctx.fillRect(0,0,1200,630);
+  ctx.strokeStyle="#c9a957"; ctx.lineWidth=2; ctx.strokeRect(32,32,1136,566);
+  ctx.fillStyle="#e8cf8f"; ctx.font="42px serif"; ctx.fillText("星夜塔罗 · 我的抽牌报告",92,118);
+  ctx.fillStyle="#8f8876"; ctx.font="24px sans-serif"; ctx.fillText(state.question || "整体运势指引",92,164);
+  const cardW=160, gap=28, total=state.drawn.length*cardW+(state.drawn.length-1)*gap, start=(1200-total)/2;
+  state.drawn.forEach((card,i) => { const x=start+i*(cardW+gap), y=225; ctx.fillStyle="#f1e8d1"; ctx.fillRect(x,y,cardW,240); ctx.strokeStyle="#b99b54"; ctx.strokeRect(x,y,cardW,240); ctx.fillStyle="#312710"; ctx.font="25px serif"; ctx.textAlign="center"; ctx.fillText(card[0],x+cardW/2,y+112); ctx.font="18px sans-serif"; ctx.fillStyle=card.reversed?"#a54e47":"#7c6735"; ctx.fillText(card.reversed?"逆位":"正位",x+cardW/2,y+148); });
+  ctx.textAlign="left"; ctx.fillStyle="#8f8876"; ctx.font="18px sans-serif"; ctx.fillText("塔罗为心灵参考，选择始终在你手中",92,550);
+  const link=document.createElement("a"); link.download=`tarot-${localDay()}.png`; link.href=canvas.toDataURL("image/png"); link.click(); showToast("分享卡已生成");
+}
+
+function openModal(kind){
+  const content = $("toolContent");
+  if(kind === "daily"){
+    const today=localDay(); let daily=safeRead(DAILY_KEY); daily = Array.isArray(daily) ? daily : [];
+    let entry=daily.find(item => item.day===today);
+    if(!entry){ const seed=[...today].reduce((sum,char)=>sum+char.charCodeAt(0),0); entry={day:today,name:DECK[seed%DECK.length][0],reversed:seed%7===0}; daily.unshift(entry); safeWrite(DAILY_KEY,daily.slice(0,366)); }
+    const card=Object.assign([...cardByName(entry.name)],{reversed:entry.reversed}); const meaning=card.reversed?card[6]:card[5];
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">每日一签</h2><p class="modal-sub">${today} · 每天一张牌，留下一条与自己对话的线索。</p><div class="daily-card"><div class="thumb ${card.reversed?"rev":""}"><div class="suit">${card[3]==="大"?"":SUIT_GLYPH[card[3]]}</div><div class="glyph">${card[3]==="大"?MAJOR_GLYPH[card[2]]:SUIT_SVG[card[3]]}</div><div class="tname">${card[0]}</div></div><div><h3>${card[0]} · ${card.reversed?"逆位":"正位"}</h3><div class="kws">${card[4].map(escapeHtml).join(" · ")}</div><p>${meaning}</p></div></div>`;
+  } else if(kind === "history"){
+    const reports=safeRead(HISTORY_KEY), daily=safeRead(DAILY_KEY).map(item=>({spread:"每日一签",at:item.day,cards:[item],question:"每日一签"})); const items=[...reports,...daily].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">抽牌历史</h2><p class="modal-sub">记录保存在当前浏览器。报告最多保留 80 次，每日一签最多保留一年。</p><div class="history-list">${items.length?items.map((item,index)=>`<button class="history-item" data-history="${index}"><time>${String(item.at).slice(0,10)}</time><div><h4>${escapeHtml(item.spread || "塔罗报告")}</h4><p>${item.cards.map(card=>escapeHtml(card.name)).join(" · ")}</p></div><span>查看</span></button>`).join(""):`<p class="modal-sub">还没有记录。完成一次占卜或抽取每日一签后，它会出现在这里。</p>`}</div>`;
+    content.querySelectorAll("[data-history]").forEach(button=>button.onclick=()=>{ const item=items[Number(button.dataset.history)]; if(item.spread==="每日一签"){openModal("daily"); return;} if(payloadToState(item)){closeModal();goStage(4);renderReport();} });
+  } else {
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">牌意词典</h2><p class="modal-sub">完整收录 78 张塔罗牌的正位、逆位与关键词，可按名称、英文或关键词搜索。</p><div class="dict-toolbar"><input class="dict-search" id="dictSearch" placeholder="搜索牌名、英文名或关键词"><select class="dict-filter" id="dictFilter"><option value="">全部牌组</option><option value="大">大阿尔卡那</option><option value="权杖">权杖</option><option value="圣杯">圣杯</option><option value="宝剑">宝剑</option><option value="星币">星币</option></select></div><div class="dict-grid" id="dictGrid"></div>`;
+    const renderDict=()=>{ const term=$("dictSearch").value.trim().toLowerCase(), suit=$("dictFilter").value; const cards=DECK.filter(card=>{const text=[card[0],card[1],card[3],...card[4]].join(" ").toLowerCase();return (!term||text.includes(term))&&(!suit||card[3]===suit);}); $("dictGrid").innerHTML=cards.map(card=>`<article class="dict-item"><h4>${card[0]}</h4><div class="en">${card[1]} · ${card[3]==="大"?"大阿尔卡那":card[3]}</div><div class="kws">${card[4].map(escapeHtml).join(" · ")}</div><p><b>正位：</b>${card[5]}</p><p><b>逆位：</b>${card[6]}</p></article>`).join("")||"<p class='modal-sub'>没有匹配的牌，请换个关键词试试。</p>"; };
+    $("dictSearch").oninput=renderDict; $("dictFilter").onchange=renderDict; renderDict();
+  }
+  $("toolModal").classList.remove("hidden");
+}
+function closeModal(){ $("toolModal").classList.add("hidden"); }
+$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
+
 /* init */
 buildDeck();
+if(location.hash.startsWith("#r=")){ const shared=decodePayload(location.hash.slice(3)); if(payloadToState(shared)){ goStage(4); renderReport(); } }
 </script>
 </body>
 </html>
