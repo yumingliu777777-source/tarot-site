@@ -156,7 +156,7 @@ end $$;
 
 -- 注册（带邀请码 → 双方各 +1 次深度解析，服务端记账）
 create or replace function register_account(p_username text, p_password text, p_nickname text, p_referrer text, p_device text)
-returns json language plpgsql security definer set search_path = public as $$
+returns json language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_username text; v_nick text; v_ref text; v_id uuid; v_token text;
   v_ref_ok boolean := false; v_credits int := 0; v_code text;
@@ -199,7 +199,7 @@ end $$;
 
 -- 登录（带失败次数锁定，防暴力破解）
 create or replace function login_account(p_username text, p_password text)
-returns json language plpgsql security definer set search_path = public as $$
+returns json language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_username text; v_user accounts%rowtype; v_token text;
 begin
@@ -285,7 +285,7 @@ end $$;
 
 -- 修改密码
 create or replace function change_password(p_token text, p_old text, p_new text)
-returns json language plpgsql security definer set search_path = public as $$
+returns json language plpgsql security definer set search_path = public, extensions as $$
 declare v_id uuid; v_hash text;
 begin
   v_id := session_account(p_token);

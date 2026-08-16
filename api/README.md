@@ -23,6 +23,19 @@
 | `/api/epay/notify` | POST | 易支付异步回调：验签 → 金额对账 → 订单置 paid（自动返利）→ 自动发码。返回 `success` |
 | `/api/epay/notify?test=1` | GET | 仅 `PAYMENT_TEST_MODE=1` 时可用，模拟支付成功 |
 | `/api/order?no=订单号` | GET | 前端轮询订单状态（含 CORS） |
+| `/api/ai` | POST | 店主 AI 深度解析：`{token, prompt}`，校验登录会话 + 服务端扣 1 次账号额度 → `{ok, text}` |
+
+## 店主 AI 深度解析（接你自己的 API）
+
+1. 找一个 OpenAI 兼容的模型服务（DeepSeek / 通义千问 / Kimi / OpenRouter 等），拿到 **API Key** 和接口地址
+2. 在 Vercel 环境变量里加（Key 只存在 Vercel，用户看不到）：
+   - `AI_ENDPOINT`（如 `https://api.deepseek.com/v1`）
+   - `AI_MODEL`（如 `deepseek-chat`）
+   - `AI_KEY`（你的密钥）
+3. 网站 `index.html` → `TAROT_SUPABASE.aiApi` 填这个后端域名（和 `payApi` 同一个 Vercel 域名即可，填了 payApi 可以留空 aiApi）
+4. 之后所有用户的「AI 深度解读」都走你的 API：每次校验登录会话、扣 1 次账号额度（服务端记账），无需用户自带 Key
+
+> 未配置 AI_* 时，`/api/ai` 返回 503；网站会自动退回"用户自带 Key"模式（原 AI 设置功能仍可用）。
 
 ## 支付成功后发生了什么
 

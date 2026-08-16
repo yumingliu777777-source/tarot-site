@@ -1266,7 +1266,9 @@ async function requestModel(config, key){
 }
 async function generateAiReportV2(){
   if(!state.drawn.length) return;
+  const ownerAI = aiApiBase() !== "";   // 店主 API 模式（用户无需自带 Key，额度服务端扣）
   if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
+    if(ownerAI && !getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
     if(getCredits()<1){
       if(getSession()){ openMemberBilling(); showToast("深度解析额度已用完：邀请好友注册即可获得"); }
       else { openMemberBilling(); showToast("请先登录账户（或开通会员）后使用 AI 深度解读"); }
@@ -1274,18 +1276,27 @@ async function generateAiReportV2(){
     }
   }
   const config=readApiConfig(), provider=config.provider||"openai", key=sessionStorage.getItem(API_KEY_SESSION)||"";
-  if(!config.endpoint || !config.model || (provider!=="ollama"&&!key)){ openApiSettings(); showToast("请先完成 AI 接口设置"); return; }
+  if(!ownerAI && (!config.endpoint || !config.model || (provider!=="ollama"&&!key))){ openApiSettings(); showToast("请先完成 AI 接口设置"); return; }
   const root=$("report"); let panel=$("aiAnalysis");
   if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
   const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
   try{
-    output.textContent=await requestModel(config,key);output.className="api-analysis";
-    if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
-      const ok=await consumeOneCredit();
-      updateMemberBadge();
-      showToast(ok?`已消耗 1 次深度解析，剩余 ${getCredits()} 次`:"额度已用完，可邀请好友或开通会员获取");
+    if(ownerAI){
+      const res=await fetch(`${aiApiBase()}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt:apiPrompt()})});
+      const data=await res.json().catch(()=>null);
+      if(!res.ok||!data||!data.ok) throw new Error(data?.error||"AI 服务暂时不可用");
+      output.textContent=data.text; output.className="api-analysis";
+      await refreshAccount();   // 同步服务端扣减后的余额
+    }else{
+      output.textContent=await requestModel(config,key); output.className="api-analysis";
+      if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){ await consumeOneCredit(); }
     }
-  }catch(error){output.className="api-analysis";output.textContent=`AI 解读暂时无法生成：${error.message}。请检查接口地址、模型名称、密钥和 CORS 设置。`;}
+    updateMemberBadge();
+    if(AI_REPORT_NEEDS_MEMBER && sbConfigured()) showToast(`已消耗 1 次深度解析，剩余 ${getCredits()} 次`);
+  }catch(error){
+    output.className="api-analysis";
+    output.textContent=`AI 解读暂时无法生成：${error.message}。${ownerAI?"可稍后重试，或联系店主检查配置。":"请检查接口地址、模型名称、密钥和 CORS 设置。"}`;
+  }
 }
 function openApiSettings(){
   const content=$("toolContent"), config={provider:"openai",...readApiConfig()};
@@ -1313,9 +1324,10 @@ const promoLinkFor = code => `${location.origin}${location.pathname}?ref=${code}
    自动化支付：另把 api/ 目录部署到 Vercel（见 api/README.md），把域名填到 payApi，
    买家付款后自动确认到账、自动发码、自动返利；payApi 留空则退回个人码人工确认流程。 */
 const TAROT_SUPABASE = {
-  url: "",            // 例: https://xxxx.supabase.co
-  anonKey: "",        // Settings → API → anon public key
+  url: "https://mkpwkjtuxsklptseemrf.supabase.co",
+  anonKey: "sb_publishable_wYXeekHAru_NXDl9wuBakw_7n-vuHGH",        // Settings → API → anon public key
   payApi: "",         // 例: https://tarot-pay.vercel.app —— 自动化支付后端（易支付+自动发码）；留空=个人码人工确认
+  aiApi: "",          // 店主 AI 深度解析后端（和 payApi 同一个 Vercel 域名；填了 payApi 可留空）；留空=用户自带 Key
   qrWechat: "qr-wechat.png",
   qrAlipay: "qr-alipay.png",
   contact: "",        // 你的微信号，买家付完款后联系你确认
@@ -1325,6 +1337,7 @@ const TAROT_SUPABASE = {
 const AI_REPORT_NEEDS_MEMBER = true; // true=AI 深度解读需会员额度；false=恢复免费
 const sbConfigured = () => !!(TAROT_SUPABASE.url && TAROT_SUPABASE.anonKey);
 const payApiBase = () => (TAROT_SUPABASE.payApi || "").replace(/\/+$/, "");
+const aiApiBase = () => ((TAROT_SUPABASE.aiApi || TAROT_SUPABASE.payApi) || "").replace(/\/+$/, "");
 const autoPayEnabled = () => sbConfigured() && !!payApiBase();
 async function sbRpc(fn, body={}){
   const res = await fetch(`${TAROT_SUPABASE.url.replace(/\/+$/,"")}/rest/v1/rpc/${fn}`, {

@@ -75,6 +75,21 @@ const TAROT_SUPABASE = {
 3. 把部署得到的域名（如 `https://tarot-pay.vercel.app`）填进第 3 步的 `payApi`
 4. **先测再上线**：把 `PAYMENT_TEST_MODE` 临时设为 `1`，重新 Deploy。此时买家点"去支付"会跳到一个"立即支付成功"的测试链接，整个流程（建单→回调→自动发码→自动返利→前端到账）会真实跑一遍，但**不产生真实扣款**。测完改回 `0`。
 
+## 第 4.5 步：AI 深度解析接你自己的 API（推荐，10 分钟）
+
+默认情况下，AI 深度解读是"**用户自己填 API Key**"。想改成"**用户直接用额度调用你的 AI**"（密钥只有你掌握）：
+
+1. 找一个 OpenAI 兼容的模型服务（DeepSeek / 通义千问 / Kimi / OpenRouter 等），拿到 **API Key**
+2. 在 Vercel 项目的 **Settings → Environment Variables** 加三个：
+   - `AI_ENDPOINT`（如 `https://api.deepseek.com/v1`）
+   - `AI_MODEL`（如 `deepseek-chat`）
+   - `AI_KEY`（你的密钥）
+3. `index.html` → `TAROT_SUPABASE.aiApi` 填那个 Vercel 域名（和 `payApi` 同一个即可，填了 payApi 可留空 aiApi）
+4. 重新 Deploy
+
+之后：用户点「AI 深度解读」→ 后端校验登录会话 → 调你的 AI → 成功后**服务端扣 1 次额度**。用户无需配任何 Key，额度用邀请好友或开会员获得。
+未配置 AI_* 时自动退回"用户自带 Key"模式，原有功能不受影响。
+
 ## 第 5 步：生成激活码（仅模式 B 需要）
 
 Supabase → **SQL Editor**，执行（生成 20 个轻会员码）：
