@@ -377,7 +377,6 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
       <button class="tool-btn" id="btnDaily">每日一签</button>
       <button class="tool-btn" id="btnHistory">历史记录</button>
       <button class="tool-btn" id="btnDict">牌意词典</button>
-      <button class="tool-btn" id="btnApi">AI 设置</button>
       <button class="tool-btn" id="btnMember">VIP 会员<span class="vip-badge hidden" id="memberBadge">VIP</span></button>
       <button class="tool-btn" id="btnPromo">推广活动</button>
       <button class="tool-btn" id="btnAccount">我的</button>
@@ -1167,8 +1166,6 @@ function showToast(msg){
 /* Reader tools and local memory */
 const HISTORY_KEY = "lunar-tarot-history-v1";
 const DAILY_KEY = "lunar-tarot-daily-v1";
-const API_CONFIG_KEY = "lunar-tarot-api-config-v1";
-const API_KEY_SESSION = "lunar-tarot-api-key-v1";
 const cardByName = name => DECK.find(card => card[0] === name);
 const safeRead = key => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } };
 const safeWrite = (key, value) => localStorage.setItem(key, JSON.stringify(value));
@@ -1221,7 +1218,6 @@ function downloadShareCard(){
   const link=document.createElement("a"); link.download=`tarot-${localDay()}.png`; link.href=canvas.toDataURL("image/png"); link.click(); showToast("分享卡已生成");
 }
 
-function readApiConfig(){ try { return JSON.parse(localStorage.getItem(API_CONFIG_KEY) || "{}"); } catch { return {}; } }
 function apiPrompt(){
   const spread=SPREADS[state.spread];
   const cards=state.drawn.map((card,index)=>`${spread.slots[index].label}：${card[0]}（${card.reversed?"逆位":"正位"}），关键词：${card[4].join("、")}，释义：${card.reversed?card[6]:card[5]}`).join("\n");
@@ -1243,82 +1239,33 @@ function openModal(kind){
     content.innerHTML=`<h2 class="modal-title" id="toolTitle">牌意词典</h2><p class="modal-sub">完整收录 78 张塔罗牌的正位、逆位与关键词，可按名称、英文或关键词搜索。</p><div class="dict-toolbar"><input class="dict-search" id="dictSearch" placeholder="搜索牌名、英文名或关键词"><select class="dict-filter" id="dictFilter"><option value="">全部牌组</option><option value="大">大阿尔卡那</option><option value="权杖">权杖</option><option value="圣杯">圣杯</option><option value="宝剑">宝剑</option><option value="星币">星币</option></select></div><div class="dict-grid" id="dictGrid"></div>`;
     const renderDict=()=>{ const term=$("dictSearch").value.trim().toLowerCase(), suit=$("dictFilter").value; const cards=DECK.filter(card=>{const text=[card[0],card[1],card[3],...card[4]].join(" ").toLowerCase();return (!term||text.includes(term))&&(!suit||card[3]===suit);}); $("dictGrid").innerHTML=cards.map(card=>`<article class="dict-item"><h4>${card[0]}</h4><div class="en">${card[1]} · ${card[3]==="大"?"大阿尔卡那":card[3]}</div><div class="kws">${card[4].map(escapeHtml).join(" · ")}</div><p><b>正位：</b>${card[5]}</p><p><b>逆位：</b>${card[6]}</p></article>`).join("")||"<p class='modal-sub'>没有匹配的牌，请换个关键词试试。</p>"; };
     $("dictSearch").oninput=renderDict; $("dictFilter").onchange=renderDict; renderDict();
-    } else {
-    const config=readApiConfig();
-    content.innerHTML=`<h2 class="modal-title" id="toolTitle">AI 接口设置</h2><p class="modal-sub">兼容 OpenAI Chat Completions 格式。请求由你的浏览器直接发送到接口，不经过本网站服务器。</p><form class="api-form" id="apiForm"><label>接口地址<input id="apiEndpoint" type="url" required placeholder="https://api.example.com/v1" value="${escapeHtml(config.endpoint||"")}"></label><label>模型名称<input id="apiModel" required placeholder="例如 gpt-4o-mini" value="${escapeHtml(config.model||"")}"></label><label>API Key<input id="apiKey" type="password" required placeholder="仅保存于当前浏览器会话"></label><p class="api-note">为了降低密钥暴露风险，API Key 不会写入 localStorage；关闭浏览器标签页后需要重新填写。接口需允许来自 GitHub Pages 的跨域请求。</p><div class="btn-row"><button class="btn primary" type="submit">保存并启用</button></div></form>`;
-    $("apiForm").onsubmit=event=>{event.preventDefault(); const endpoint=$("apiEndpoint").value.trim().replace(/\/$/,""); const model=$("apiModel").value.trim(), key=$("apiKey").value.trim(); localStorage.setItem(API_CONFIG_KEY,JSON.stringify({endpoint,model})); sessionStorage.setItem(API_KEY_SESSION,key); closeModal(); showToast("AI 接口已启用");};
-  }
   }
   $("toolModal").classList.remove("hidden");
 }
 function closeModal(){ $("toolModal").classList.add("hidden"); }
-const PROVIDER_DEFAULTS = {
-  openai:{label:"OpenAI 兼容（OpenAI / DeepSeek / 通义 / Kimi / 智谱等）",endpoint:"https://api.openai.com/v1",model:"gpt-4o-mini"},
-  gemini:{label:"Google Gemini",endpoint:"https://generativelanguage.googleapis.com/v1beta",model:"gemini-2.0-flash"},
-  anthropic:{label:"Anthropic Claude",endpoint:"https://api.anthropic.com/v1",model:"claude-3-5-haiku-latest"},
-  ollama:{label:"本地 Ollama",endpoint:"http://localhost:11434",model:"llama3.2"}
-};
-function modelTextFromResponse(provider, data){
-  if(provider === "gemini") return data?.candidates?.[0]?.content?.parts?.map(part=>part.text||"").join("");
-  if(provider === "anthropic") return data?.content?.map(part=>part.text||"").join("");
-  if(provider === "ollama") return data?.message?.content;
-  return data?.choices?.[0]?.message?.content;
-}
-async function requestModel(config, key){
-  const provider=config.provider||"openai", base=config.endpoint.replace(/\/$/,""); let url, headers={"Content-Type":"application/json"}, body;
-  if(provider === "gemini") { url=`${base}/models/${config.model}:generateContent?key=${encodeURIComponent(key)}`; body={contents:[{parts:[{text:apiPrompt()}]}],generationConfig:{temperature:.75}}; }
-  else if(provider === "anthropic") { url=`${base}/messages`; headers={...headers,"x-api-key":key,"anthropic-version":"2023-06-01"}; body={model:config.model,max_tokens:1800,temperature:.75,messages:[{role:"user",content:apiPrompt()}]}; }
-  else if(provider === "ollama") { url=`${base}/api/chat`; body={model:config.model,stream:false,messages:[{role:"system",content:"你以中文提供关怀、清晰且负责任的塔罗解读。"},{role:"user",content:apiPrompt()}]}; }
-  else { url=`${base}/chat/completions`; headers.Authorization=`Bearer ${key}`; body={model:config.model,messages:[{role:"system",content:"你以中文提供关怀、清晰且负责任的塔罗解读。"},{role:"user",content:apiPrompt()}],temperature:.75}; }
-  const response=await fetch(url,{method:"POST",headers,body:JSON.stringify(body)});
-  if(!response.ok) throw new Error(`接口返回 ${response.status}`);
-  const text=modelTextFromResponse(provider,await response.json());
-  if(!text) throw new Error("接口未返回解读内容");
-  return text;
-}
 async function generateAiReportV2(){
   if(!state.drawn.length) return;
-  const ownerAI = aiApiBase() !== "";   // 店主 API 模式（用户无需自带 Key，额度服务端扣）
   if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
-    if(ownerAI && getSession()){ await refreshAccount(); }   // 先同步服务器上的最新额度，避免缓存过期误判
-    if(ownerAI && !getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
-    if(getCredits()<1){
-      if(getSession()){ openMemberBilling(); showToast("深度解析额度已用完：邀请好友注册即可获得"); }
-      else { openMemberBilling(); showToast("请先登录账户（或开通会员）后使用 AI 深度解读"); }
-      return;
-    }
+    if(!getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
+    await refreshAccount();   // 先同步服务器上的最新额度，避免缓存过期误判
+    if(getCredits()<1){ openMemberBilling(); showToast("深度解析额度已用完：邀请好友注册即可获得"); return; }
   }
-  const config=readApiConfig(), provider=config.provider||"openai", key=sessionStorage.getItem(API_KEY_SESSION)||"";
-  if(!ownerAI && (!config.endpoint || !config.model || (provider!=="ollama"&&!key))){ openApiSettings(); showToast("请先完成 AI 接口设置"); return; }
+  if(!aiApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
   const root=$("report"); let panel=$("aiAnalysis");
   if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
   const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
   try{
-    if(ownerAI){
-      const res=await fetch(`${aiApiBase()}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt:apiPrompt()})});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok||!data||!data.ok) throw new Error(data?.error||"AI 服务暂时不可用");
-      output.textContent=data.text; output.className="api-analysis";
-      await refreshAccount();   // 同步服务端扣减后的余额
-    }else{
-      output.textContent=await requestModel(config,key); output.className="api-analysis";
-      if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){ await consumeOneCredit(); }
-    }
+    const res=await fetch(`${aiApiBase()}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt:apiPrompt()})});
+    const data=await res.json().catch(()=>null);
+    if(!res.ok||!data||!data.ok) throw new Error(data?.error||"AI 服务暂时不可用");
+    output.textContent=data.text; output.className="api-analysis";
+    await refreshAccount();   // 同步服务端扣减后的余额
     updateMemberBadge();
     if(AI_REPORT_NEEDS_MEMBER && sbConfigured()) showToast(`已消耗 1 次深度解析，剩余 ${getCredits()} 次`);
   }catch(error){
     output.className="api-analysis";
-    output.textContent=`AI 解读暂时无法生成：${error.message}。${ownerAI?"可稍后重试，或联系店主检查配置。":"请检查接口地址、模型名称、密钥和 CORS 设置。"}`;
+    output.textContent=`AI 解读暂时无法生成：${error.message}。可稍后重试，或联系店主检查配置。`;
   }
-}
-function openApiSettings(){
-  const content=$("toolContent"), config={provider:"openai",...readApiConfig()};
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">AI 接口设置</h2><p class="modal-sub">支持云端模型与本地模型。请求由浏览器直接发送到你配置的接口。</p><form class="api-form" id="apiForm"><label>服务商<select id="apiProvider">${Object.entries(PROVIDER_DEFAULTS).map(([id,item])=>`<option value="${id}" ${config.provider===id?"selected":""}>${item.label}</option>`).join("")}</select></label><label>接口 Base URL<input id="apiEndpoint" type="url" required value="${escapeHtml(config.endpoint||"")}"></label><label>模型名称<input id="apiModel" required value="${escapeHtml(config.model||"")}"></label><label>API Key<input id="apiKey" type="password" placeholder="Ollama 可留空"></label><p class="api-note" id="apiHelp">密钥仅保存在当前浏览器会话中。OpenAI 兼容模式适用于 DeepSeek、通义千问、Kimi、智谱等提供 Chat Completions 的服务。</p><div class="btn-row"><button class="btn primary" type="submit">保存并启用</button></div></form>`;
-  const provider=$("apiProvider"), endpoint=$("apiEndpoint"), model=$("apiModel"), key=$("apiKey"), help=$("apiHelp");
-  const setDefaults=()=>{const item=PROVIDER_DEFAULTS[provider.value]; endpoint.value=item.endpoint; model.value=item.model; key.required=provider.value!=="ollama"; help.textContent=provider.value==="ollama"?"本地 Ollama 默认无需密钥。请确认本机服务已启动并允许网页跨域访问。":"密钥仅保存在当前浏览器会话中。接口需允许 GitHub Pages 的跨域请求。";};
-  provider.onchange=setDefaults; key.required=provider.value!=="ollama";
-  $("apiForm").onsubmit=event=>{event.preventDefault();const saved={provider:provider.value,endpoint:endpoint.value.trim().replace(/\/$/,""),model:model.value.trim()};localStorage.setItem(API_CONFIG_KEY,JSON.stringify(saved));sessionStorage.setItem(API_KEY_SESSION,key.value.trim());closeModal();showToast("AI 接口已启用");};
-  $("toolModal").classList.remove("hidden");
 }
 
 const MEMBER_PLANS = [
@@ -1395,16 +1342,6 @@ const getCredits = () => {
   }
   return readLocalMember()?.credits || 0;
 };
-async function consumeOneCredit(){
-  if(getSession()){
-    try{
-      const r=await sbRpc("consume_credit_account",{p_token:getSession()});
-      if(r && r.ok){ await refreshAccount(); return true; }
-      return false;
-    }catch(e){ return false; }
-  }
-  return consumeCredit();
-}
 /* 拉新活动：注册时带邀请码 → 双方各 +1 次深度解析（服务端记账，见 register_account）。
    新人礼横幅：仅对「经好友链接访问且尚未注册」的用户显示。 */
 function updateNewbieBanner(){
@@ -1420,13 +1357,6 @@ const grantEntitlement = (plan, credits, expiresMs) => {
   localStorage.setItem(LOCAL_MEMBER_KEY, JSON.stringify(member));
   updateMemberBadge();
   return member;
-};
-const consumeCredit = () => {
-  const member = readLocalMember();
-  if(!member || member.credits < 1) return false;
-  member.credits -= 1; localStorage.setItem(LOCAL_MEMBER_KEY, JSON.stringify(member));
-  updateMemberBadge();
-  return true;
 };
 function updateMemberBadge(){
   const member = readLocalMember();
@@ -1852,7 +1782,7 @@ function goHome(){
   closeModal();
   goStage(0);
 }
-$("btnDaily").onclick=()=>{track("open_daily_draw");openModal("daily");}; $("btnHistory").onclick=()=>{track("open_history");openModal("history");}; $("btnDict").onclick=()=>{track("open_dictionary");openModal("dict");}; $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnVipCta").onclick=openMemberBilling; $("btnCopyInvite").onclick=async()=>{
+$("btnDaily").onclick=()=>{track("open_daily_draw");openModal("daily");}; $("btnHistory").onclick=()=>{track("open_history");openModal("history");}; $("btnDict").onclick=()=>{track("open_dictionary");openModal("dict");}; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnVipCta").onclick=openMemberBilling; $("btnCopyInvite").onclick=async()=>{
   if(getSession()){
     const acc=await refreshAccount();
     if(acc&&acc.ref_code){ track("invite_copy", { ref_code: acc.ref_code }); copyText(promoLinkFor(acc.ref_code)).then(()=>showToast("邀请链接已复制，快去分享吧 ✦")).catch(()=>showToast("复制失败，请到「推广活动」页复制")); }
