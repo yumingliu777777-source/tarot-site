@@ -84,16 +84,38 @@ alter table referrers enable row level security;
 alter table rebates   enable row level security;
 -- （不建任何 anon 策略 = 匿名访问全部拒绝；店主在后台/仪表盘用 service key 不受影响）
 
--- ---------- 5.5 拉新活动（推广优先）：新用户通过推荐链接注册即算"拉新成功" ----------
--- device_id 主键 = 每个设备只能被计入一次；referrer 是推荐人的推荐码
-create table if not exists signup_claims (
-  device_id text primary key,
-  referrer text not null,
+-- ============================================================
+-- 账号系统（真实注册/登录，深度解析额度跟账号走，跨设备可用）
+-- 用户名 + 密码（bcrypt 加密存储）；注册时若带邀请码，双方各 +1 次深度解析
+-- ============================================================
+create extension if not exists pgcrypto;
+
+create table if not exists accounts (
+  id uuid primary key default gen_random_uuid(),
+  username text unique not null,              -- 登录名（小写，字母数字下划线）
+  nickname text not null,                     -- 显示昵称
+  password_hash text not null,                -- bcrypt（pgcrypto crypt）
+  ref_code text unique not null,              -- 该账号自己的邀请码
+  referrer text,                              -- 注册时来自谁的邀请码（不可改）
+  credits integer not null default 0,         -- 深度解析额度（服务端记账）
+  device_id text,                             -- 注册设备（用于防刷）
+  failed_attempts integer not null default 0,
+  locked_until timestamptz,
   created_at timestamptz not null default now()
 );
-create index if not exists idx_signup_claims_referrer on signup_claims(referrer);
-alter table signup_claims enable row level security;
--- （不建 anon 策略：匿名只能通过下面的安全函数领取，不能直接改表）
+create index if not exists idx_accounts_ref on accounts(ref_code);
+
+create table if not exists sessions (
+  token text primary key,                     -- 随机会话令牌（仅存前端 localStorage）
+  account_id uuid not null references accounts(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+create index if not exists idx_sessions_account on sessions(account_id);
+
+alter table accounts enable row level security;
+alter table sessions enable row level security;
+-- （不建 anon 策略：匿名只能通过下面的安全函数注册/登录，不能直接读写表）
 
 -- ============================================================
 -- 内部工具（不给网站调用，仅内部函数使用）
@@ -118,6 +140,160 @@ $$;
 -- ============================================================
 -- 网站调用的安全函数（SECURITY DEFINER = 以管理员身份执行，绕过 RLS）
 -- ============================================================
+
+-- ---------- 账号系统 ----------
+-- 内部：按会话令牌取账号 id（不给匿名调用）
+create or replace function session_account(p_token text)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  select account_id into v_id from sessions where token = p_token and expires_at > now();
+  return v_id;
+end $$;
+
+-- 注册（带邀请码 → 双方各 +1 次深度解析，服务端记账）
+create or replace function register_account(p_username text, p_password text, p_nickname text, p_referrer text, p_device text)
+returns json language plpgsql security definer set search_path = public as $$
+declare
+  v_username text; v_nick text; v_ref text; v_id uuid; v_token text;
+  v_ref_ok boolean := false; v_credits int := 0; v_code text;
+begin
+  v_username := lower(trim(coalesce(p_username,'')));
+  if v_username !~ '^[a-z0-9_]{4,20}$' then raise exception '用户名需为 4-20 位字母、数字或下划线'; end if;
+  if length(coalesce(p_password,'')) < 6 then raise exception '密码至少 6 位'; end if;
+  if exists (select 1 from accounts where username = v_username) then raise exception '该用户名已被注册'; end if;
+  v_nick := nullif(trim(coalesce(p_nickname,'')), '');
+  if v_nick is null then v_nick := v_username; end if;
+  if length(v_nick) > 20 then raise exception '昵称最多 20 个字'; end if;
+  v_ref := upper(trim(coalesce(p_referrer,'')));
+  if v_ref <> '' and not valid_referrer(v_ref) then raise exception '邀请码格式不对'; end if;
+  if length(coalesce(p_device,'')) >= 8 then
+    if (select count(*) from accounts where device_id = p_device and created_at > now() - interval '24 hours') >= 3 then
+      raise exception '注册太频繁，请稍后再试';
+    end if;
+  end if;
+  if v_ref <> '' then
+    select true into v_ref_ok from accounts where ref_code = v_ref;
+    v_ref_ok := coalesce(v_ref_ok, false);
+    if not v_ref_ok then raise exception '邀请码不存在，请核对'; end if;
+  end if;
+  v_code := 'X' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 7));
+  insert into accounts (username, nickname, password_hash, ref_code, referrer, credits, device_id)
+  values (v_username, v_nick, crypt(p_password, gen_salt('bf', 10)), v_code,
+          case when v_ref_ok then v_ref else null end,
+          case when v_ref_ok then 1 else 0 end,
+          nullif(p_device,''))
+  returning id into v_id;
+  if v_ref_ok then
+    update accounts set credits = credits + 1 where ref_code = v_ref;
+    v_credits := 1;
+  end if;
+  v_token := encode(gen_random_bytes(24), 'hex');
+  insert into sessions (token, account_id, expires_at) values (v_token, v_id, now() + interval '30 days');
+  return json_build_object('token', v_token, 'username', v_username, 'nickname', v_nick,
+                           'credits', v_credits, 'ref_code', v_code);
+end $$;
+
+-- 登录（带失败次数锁定，防暴力破解）
+create or replace function login_account(p_username text, p_password text)
+returns json language plpgsql security definer set search_path = public as $$
+declare
+  v_username text; v_user accounts%rowtype; v_token text;
+begin
+  v_username := lower(trim(coalesce(p_username,'')));
+  select * into v_user from accounts where username = v_username;
+  if v_user.id is null then raise exception '用户名或密码错误'; end if;
+  if v_user.locked_until is not null and v_user.locked_until > now() then
+    raise exception '尝试次数过多，请 15 分钟后再试';
+  end if;
+  if v_user.password_hash is null or crypt(p_password, v_user.password_hash) <> v_user.password_hash then
+    update accounts set failed_attempts = failed_attempts + 1 where id = v_user.id;
+    if (select failed_attempts from accounts where id = v_user.id) >= 8 then
+      update accounts set locked_until = now() + interval '15 minutes', failed_attempts = 0 where id = v_user.id;
+      raise exception '尝试次数过多，账号已锁定 15 分钟';
+    end if;
+    raise exception '用户名或密码错误';
+  end if;
+  update accounts set failed_attempts = 0 where id = v_user.id;
+  v_token := encode(gen_random_bytes(24), 'hex');
+  insert into sessions (token, account_id, expires_at) values (v_token, v_user.id, now() + interval '30 days');
+  return json_build_object('token', v_token, 'username', v_user.username, 'nickname', v_user.nickname,
+                           'credits', v_user.credits, 'ref_code', v_user.ref_code);
+end $$;
+
+-- 登出
+create or replace function logout_account(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+begin
+  delete from sessions where token = p_token;
+  return json_build_object('ok', true);
+end $$;
+
+-- 当前账号信息（含额度、邀请码、邀请人）
+create or replace function me(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_user accounts%rowtype;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  select * into v_user from accounts where id = v_id;
+  return json_build_object('ok', true, 'username', v_user.username, 'nickname', v_user.nickname,
+                           'credits', v_user.credits, 'ref_code', v_user.ref_code,
+                           'referrer', v_user.referrer, 'created_at', v_user.created_at);
+end $$;
+
+-- 消耗 1 次深度解析（服务端扣减）
+create or replace function consume_credit_account(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_left int;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  update accounts set credits = credits - 1 where id = v_id and credits >= 1 returning credits into v_left;
+  if v_left is null then return json_build_object('ok', false, 'reason', 'no_credit'); end if;
+  return json_build_object('ok', true, 'credits_left', v_left);
+end $$;
+
+-- 我的推广数据：已拉新人数 + 可用深度解析
+create or replace function my_referrals(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_code text; v_new int; v_credits int;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  select ref_code, credits into v_code, v_credits from accounts where id = v_id;
+  select count(*) into v_new from accounts where referrer = v_code;
+  return json_build_object('ok', true, 'new_users', v_new, 'credits', v_credits, 'ref_code', v_code);
+end $$;
+
+-- 修改昵称
+create or replace function update_profile(p_token text, p_nickname text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_nick text;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  v_nick := nullif(trim(coalesce(p_nickname,'')), '');
+  if v_nick is null or length(v_nick) > 20 then raise exception '昵称不能为空且最多 20 字'; end if;
+  update accounts set nickname = v_nick where id = v_id;
+  return json_build_object('ok', true, 'nickname', v_nick);
+end $$;
+
+-- 修改密码
+create or replace function change_password(p_token text, p_old text, p_new text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_hash text;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  if length(coalesce(p_new,'')) < 6 then raise exception '新密码至少 6 位'; end if;
+  select password_hash into v_hash from accounts where id = v_id;
+  if v_hash is null or crypt(p_old, v_hash) <> v_hash then raise exception '原密码不正确'; end if;
+  update accounts set password_hash = crypt(p_new, gen_salt('bf', 10)) where id = v_id;
+  return json_build_object('ok', true);
+end $$;
+
+revoke execute on function session_account(text) from public, anon, authenticated;
 
 -- 报价：买家点"下一步"时显示应付金额（含首单立减）
 create or replace function quote_order(p_plan text, p_referrer text, p_device text)
@@ -230,50 +406,20 @@ begin
   return json_build_object('ok', true);
 end $$;
 
--- 查看自己的推广收益（不含收款账号，保护隐私）
--- new_users = 通过你的链接注册的新用户数
+-- 查看自己的推广收益（旧版设备推荐，仅供兼容旧链接；新推广数据见 my_referrals）
 create or replace function my_referrer(p_code text)
 returns json language plpgsql security definer set search_path = public as $$
 declare v_code text; v_out json;
 begin
   v_code := upper(trim(coalesce(p_code,'')));
   select coalesce(to_jsonb(r), '{}'::jsonb) into v_out from (
-    select code, nickname, payout_type, credits, total_reward, created_at,
-           (select count(*) from signup_claims where referrer = code) as new_users
+    select code, nickname, payout_type, credits, total_reward, created_at
     from referrers where code = v_code
   ) r;
   return v_out;
 end $$;
 
--- 拉新奖励：新用户通过推荐链接创建账户（注册）时调用 → 推荐人 +1 解读额度（可兑换成 AI 深度解析）
--- 推荐人还没保存过结算设置也没关系：自动建档，默认额度返利，直接到账
--- 一个设备只计一次；自荐（自己点自己的链接注册）会被拒绝
-create or replace function claim_new_user(p_device text, p_referrer text)
-returns json language plpgsql security definer set search_path = public as $$
-declare v_ref text; v_self int;
-begin
-  if length(coalesce(p_device,'')) < 8 then
-    return json_build_object('ok', false, 'reason', 'bad_device');
-  end if;
-  v_ref := upper(trim(coalesce(p_referrer,'')));
-  if not valid_referrer(v_ref) then
-    return json_build_object('ok', false, 'reason', 'bad_ref');
-  end if;
-  if exists (select 1 from signup_claims where device_id = p_device) then
-    return json_build_object('ok', false, 'reason', 'already_claimed');
-  end if;
-  select count(*) into v_self from referrers where code = v_ref and device_id = p_device;
-  if v_self > 0 then
-    return json_build_object('ok', false, 'reason', 'self');
-  end if;
-  insert into signup_claims (device_id, referrer) values (p_device, v_ref);
-  insert into referrers (code, payout_type, credits)
-  values (v_ref, 'credit', 1)
-  on conflict (code) do update set credits = referrers.credits + 1;
-  return json_build_object('ok', true);
-end $$;
-
--- 把 1 次解读额度兑换到本机（服务端扣减，防止刷额度）
+-- 把 1 次解读额度兑换到本机（旧版设备推荐，仅供兼容旧链接）
 create or replace function redeem_credit(p_code text)
 returns json language plpgsql security definer set search_path = public as $$
 declare v_code text; v_left int;
