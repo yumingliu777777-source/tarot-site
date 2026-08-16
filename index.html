@@ -1286,7 +1286,7 @@ const promoLinkFor = code => `${location.origin}${location.pathname}?ref=${code}
 const TAROT_SUPABASE = {
   url: "https://mkpwkjtuxsklptseemrf.supabase.co",
   anonKey: "sb_publishable_wYXeekHAru_NXDl9wuBakw_7n-vuHGH",        // Settings → API → anon public key
-  payApi: "",         // 例: https://tarot-pay.vercel.app —— 自动化支付后端（易支付+自动发码）；留空=个人码人工确认
+  payApi: "https://tarot-site-one.vercel.app",         // 自动化支付后端（易支付+自动发码）；留空=个人码人工确认
   aiApi: "https://tarot-site-one.vercel.app",  // 店主 AI 深度解析后端（和 payApi 同一个 Vercel 域名；填了 payApi 可留空）；留空=用户自带 Key
   qrWechat: "qr-wechat.png",
   qrAlipay: "qr-alipay.png",
@@ -1511,7 +1511,16 @@ async function startAutoPay(s){
     track("order_created", { plan: s.planId, method: s.method, referrer: !!s.ref });
     localStorage.setItem(LOCAL_ORDER_KEY,JSON.stringify({orderNo:data.orderNo,planName:plan.name,planId:s.planId,method:s.method,status:"pending",createdAt:Date.now()}));
     location.href=data.payUrl;   // 跳转易支付收银台，付款后自动跳回
-  }catch(e){ renderMemberCheckout({...s,err:e.message}); }
+  }catch(e){
+    // 自动支付不可用（如商户未配置）时，自动降级为个人码扫码人工确认
+    try{
+      const quote=await sbRpc("quote_order",{p_plan:s.planId,p_referrer:s.ref||"",p_device:getDeviceId()});
+      renderMemberCheckout({step:"pay",planId:s.planId,method:s.method,ref:s.ref||getStoredReferrer(),quote});
+      showToast("自动支付暂不可用，已切换为扫码支付");
+    }catch(e2){
+      renderMemberCheckout({...s,err:e.message});
+    }
+  }
 }
 function waitOrderPaid(orderNo, planId, method){
   if(payPollTimer) clearInterval(payPollTimer);
