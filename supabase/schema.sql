@@ -49,10 +49,11 @@ create index if not exists idx_orders_status on orders(status);
 alter table orders add column if not exists issued_code text;
 
 -- ---------- 3. 推荐人 ----------
+-- 推广优先：默认额度返利（每拉 1 人 +1 次深度解析，自动到账）；想拿现金可自己在推广页切换
 create table if not exists referrers (
   code text primary key,
   nickname text,
-  payout_type text not null default 'cash' check (payout_type in ('cash','credit')),
+  payout_type text not null default 'credit' check (payout_type in ('cash','credit')),
   payout_account text,
   device_id text,
   credits integer not null default 0,
@@ -82,6 +83,17 @@ alter table orders    enable row level security;
 alter table referrers enable row level security;
 alter table rebates   enable row level security;
 -- （不建任何 anon 策略 = 匿名访问全部拒绝；店主在后台/仪表盘用 service key 不受影响）
+
+-- ---------- 5.5 拉新活动（推广优先）：新用户通过推荐链接注册即算"拉新成功" ----------
+-- device_id 主键 = 每个设备只能被计入一次；referrer 是推荐人的推荐码
+create table if not exists signup_claims (
+  device_id text primary key,
+  referrer text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_signup_claims_referrer on signup_claims(referrer);
+alter table signup_claims enable row level security;
+-- （不建 anon 策略：匿名只能通过下面的安全函数领取，不能直接改表）
 
 -- ============================================================
 -- 内部工具（不给网站调用，仅内部函数使用）
@@ -219,16 +231,46 @@ begin
 end $$;
 
 -- 查看自己的推广收益（不含收款账号，保护隐私）
+-- new_users = 通过你的链接注册的新用户数
 create or replace function my_referrer(p_code text)
 returns json language plpgsql security definer set search_path = public as $$
 declare v_code text; v_out json;
 begin
   v_code := upper(trim(coalesce(p_code,'')));
   select coalesce(to_jsonb(r), '{}'::jsonb) into v_out from (
-    select code, nickname, payout_type, credits, total_reward, created_at
+    select code, nickname, payout_type, credits, total_reward, created_at,
+           (select count(*) from signup_claims where referrer = code) as new_users
     from referrers where code = v_code
   ) r;
   return v_out;
+end $$;
+
+-- 拉新奖励：新用户通过推荐链接创建账户（注册）时调用 → 推荐人 +1 解读额度（可兑换成 AI 深度解析）
+-- 推荐人还没保存过结算设置也没关系：自动建档，默认额度返利，直接到账
+-- 一个设备只计一次；自荐（自己点自己的链接注册）会被拒绝
+create or replace function claim_new_user(p_device text, p_referrer text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_ref text; v_self int;
+begin
+  if length(coalesce(p_device,'')) < 8 then
+    return json_build_object('ok', false, 'reason', 'bad_device');
+  end if;
+  v_ref := upper(trim(coalesce(p_referrer,'')));
+  if not valid_referrer(v_ref) then
+    return json_build_object('ok', false, 'reason', 'bad_ref');
+  end if;
+  if exists (select 1 from signup_claims where device_id = p_device) then
+    return json_build_object('ok', false, 'reason', 'already_claimed');
+  end if;
+  select count(*) into v_self from referrers where code = v_ref and device_id = p_device;
+  if v_self > 0 then
+    return json_build_object('ok', false, 'reason', 'self');
+  end if;
+  insert into signup_claims (device_id, referrer) values (p_device, v_ref);
+  insert into referrers (code, payout_type, credits)
+  values (v_ref, 'credit', 1)
+  on conflict (code) do update set credits = referrers.credits + 1;
+  return json_build_object('ok', true);
 end $$;
 
 -- 把 1 次解读额度兑换到本机（服务端扣减，防止刷额度）

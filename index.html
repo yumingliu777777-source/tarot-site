@@ -291,6 +291,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
   header{align-items:flex-start;gap:10px}.header-tools{gap:5px;justify-content:flex-end;flex-wrap:wrap}.tool-btn{min-height:30px;padding:0 8px;font-size:11px}.modal-panel{padding:22px 16px}.daily-card{grid-template-columns:1fr}.daily-card .thumb{height:150px;width:92px}.history-item{grid-template-columns:1fr}.history-item time{grid-row:1}.dict-toolbar{flex-wrap:wrap}.dict-filter{height:40px}
   .plan-grid{grid-template-columns:1fr}.checkout-options{flex-direction:column}
   .benefit-grid,.promo-steps{grid-template-columns:1fr}
+  .newbie-banner{flex-direction:column;text-align:center;gap:12px}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -306,6 +307,14 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 .vip-cta::before{content:"✦";position:absolute;top:12px;right:16px;color:var(--gold-dim);font-size:12px}
 .vip-cta h3{font-family:var(--serif);font-size:17px;letter-spacing:.24em;color:var(--gold-hi);font-weight:600;margin-bottom:8px}
 .vip-cta p{font-size:12.5px;color:var(--muted);line-height:1.8;letter-spacing:.04em;margin-bottom:14px}
+/* ── 新人礼领取横幅 ───────────────────────── */
+.newbie-banner{margin:26px auto 0;max-width:620px;display:flex;align-items:center;gap:18px;
+  border:1px solid rgba(123,108,214,.5);background:linear-gradient(135deg,rgba(123,108,214,.14),rgba(201,169,87,.08));
+  border-radius:6px;padding:18px 22px;position:relative;overflow:hidden}
+.newbie-banner h3{font-family:var(--serif);font-size:16px;letter-spacing:.14em;color:var(--gold-hi);font-weight:600;margin-bottom:6px}
+.newbie-banner p{font-size:12.5px;color:var(--muted);line-height:1.8;letter-spacing:.03em}
+.newbie-banner p b{color:var(--gold)}
+.newbie-banner .btn{flex-shrink:0}
 /* ── 支付等待 / 旋转 ──────────────────────── */
 .spinner{width:34px;height:34px;margin:0 auto 14px;border-radius:50%;
   border:2px solid rgba(201,169,87,.25);border-top-color:var(--gold);
@@ -387,10 +396,21 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 
     <div class="btn-row"><button class="btn primary" id="btnStart">✦ 开始占卜 ✦</button></div>
 
+    <div class="newbie-banner hidden" id="newbieBanner">
+      <div>
+        <h3>🎁 新人礼已就绪</h3>
+        <p>你已接受好友邀请。创建账户后，你和好友各得 <b>1 次免费深度解析</b>。</p>
+      </div>
+      <button class="btn primary" id="btnClaimNewbie" style="padding:10px 26px;font-size:13px">立即领取</button>
+    </div>
+
     <div class="vip-cta">
-      <h3>✦ 开通灵感会员</h3>
-      <p>官方 AI 深度解读 · 专属分享报告。微信 / 支付宝均可支付，支付成功即时到账，无需等待人工发码。</p>
-      <button class="btn primary" id="btnVipCta" style="padding:10px 34px;font-size:13px">了解会员权益</button>
+      <h3>✦ 邀请好友 · 各得 1 次免费深度解析</h3>
+      <p>每带来一位注册的新用户，你和 TA 各获得 1 次官方 AI 深度解析机会，多邀多得，上不封顶。</p>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn primary" id="btnCopyInvite" style="padding:10px 30px;font-size:13px">复制邀请链接</button>
+        <button class="btn ghost" id="btnVipCta" style="padding:10px 22px;font-size:13px">会员权益</button>
+      </div>
     </div>
   </section>
 
@@ -1264,6 +1284,7 @@ const MEMBER_PLANS = [
 const REFERRAL_KEY = "lunar-tarot-referral-code-v1";
 const getReferralCode = () => { let code=localStorage.getItem(REFERRAL_KEY); if(!code){code=Math.random().toString(36).slice(2,8).toUpperCase();localStorage.setItem(REFERRAL_KEY,code);} return code; };
 const getReferrer = () => new URLSearchParams(location.search).get("ref") || "";
+const promoLinkFor = code => `${location.origin}${location.pathname}?ref=${code}`;
 /* ===== 会员收款配置（Supabase 免费档 + 可选自动化支付）=====
    搭建步骤见 SETUP.md：注册 supabase.com → 新建项目 → SQL Editor 运行 supabase/schema.sql
    → 把项目 URL 与 anon public key 填到下面 → 把你的微信/支付宝收款码截图
@@ -1297,6 +1318,37 @@ const getDeviceId = () => { let d=localStorage.getItem(DEVICE_KEY); if(!d){ try{
 const REFERRED_BY_KEY = "lunar-tarot-referred-by-v1";
 const persistReferrer = () => { const ref=getReferrer(); if(ref && /^[A-Za-z0-9]{4,8}$/.test(ref)) localStorage.setItem(REFERRED_BY_KEY, ref.toUpperCase()); };
 const getStoredReferrer = () => { persistReferrer(); return (localStorage.getItem(REFERRED_BY_KEY)||"").toUpperCase(); };
+/* 拉新活动：经好友链接访问的新用户创建账户（注册）后，自动领取"你 +1 次、好友 +1 次"的免费深度解析。
+   服务端按设备去重（一个设备只计一次），本机用标记避免重复调用；失败静默，下次进入相关页面自动重试。 */
+const CLAIMED_KEY = "lunar-tarot-claimed-v1";
+async function maybeClaimNewUser(){
+  if(!sbConfigured() || localStorage.getItem(CLAIMED_KEY)) return;
+  const ref=getStoredReferrer();
+  if(!ref || !readLocalAccount()) return;
+  try{
+    const r=await sbRpc("claim_new_user",{p_device:getDeviceId(),p_referrer:ref});
+    if(r && r.ok){
+      localStorage.setItem(CLAIMED_KEY,"1");
+      grantEntitlement("推广额度",1,Date.now()+30*86400000);
+      updateMemberBadge();
+      updateNewbieBanner();
+      const claimBtn=$("btnClaimHere");
+      if(claimBtn){ claimBtn.disabled=true; claimBtn.textContent="已领取 ✓"; }
+      showToast("✦ 新人礼到账：你和好友各 +1 次免费深度解析");
+    }else if(r && r.reason==="already_claimed"){
+      localStorage.setItem(CLAIMED_KEY,"1");
+      updateNewbieBanner();
+      const claimBtn=$("btnClaimHere");
+      if(claimBtn){ claimBtn.disabled=true; claimBtn.textContent="已领取 ✓"; }
+    }
+  }catch(e){ /* 网络失败静默处理，下次进入账户页自动重试 */ }
+}
+function updateNewbieBanner(){
+  const banner=$("newbieBanner");
+  if(!banner) return;
+  const show=sbConfigured() && !!getStoredReferrer() && !localStorage.getItem(CLAIMED_KEY) && !readLocalAccount();
+  banner.classList.toggle("hidden", !show);
+}
 /* 会员权益：激活码由服务端校验，权益缓存到本机浏览器 */
 const grantEntitlement = (plan, credits, expiresMs) => {
   const cur = readLocalMember();
@@ -1340,8 +1392,14 @@ function openAccount(){
   const content=$("toolContent"), account=readLocalAccount(), member=readLocalMember();
   if(account){
     const initials=(account.name||"星").slice(0,1);
-    content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(account.name)}</h3><p>${escapeHtml(account.email||"本地体验账户")}</p></div></section><div class="benefit-grid"><div class="benefit"><strong>${member?.credits||0}</strong><span>AI 解读额度</span></div><div class="benefit"><strong>${member?.plan||"免费"}</strong><span>当前权益</span></div><div class="benefit"><strong>${member?.expires?new Date(member.expires).toLocaleDateString("zh-CN"):"--"}</strong><span>权益有效期</span></div></div><div class="sec-title">✦ 我的订单</div><div class="order-list" id="orderList">加载中…</div><div class="btn-row"><button class="btn ghost" id="btnLogout">退出本地账户</button></div>`;
-    $("btnLogout").onclick=()=>{localStorage.removeItem(LOCAL_ACCOUNT_KEY);localStorage.removeItem(LOCAL_MEMBER_KEY);showToast("已退出本地账户");updateMemberBadge();openAccount();};
+    const canClaim=!localStorage.getItem(CLAIMED_KEY) && !!getStoredReferrer();
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(account.name)}</h3><p>${escapeHtml(account.email||"本地体验账户")}</p></div></section><div class="benefit-grid"><div class="benefit"><strong>${member?.credits||0}</strong><span>AI 解读额度</span></div><div class="benefit"><strong>${member?.plan||"免费"}</strong><span>当前权益</span></div><div class="benefit"><strong>${member?.expires?new Date(member.expires).toLocaleDateString("zh-CN"):"--"}</strong><span>权益有效期</span></div></div>${canClaim?`<section class="referral-box" style="margin-bottom:16px"><h3>🎁 新人礼待领取</h3><p>你和好友各得 1 次免费深度解析，点击领取。</p><div class="btn-row" style="margin-top:10px;justify-content:flex-start"><button class="btn primary" id="btnClaimHere" style="padding:10px 26px;font-size:13px">领取新人礼</button></div></section>`:""}<div class="sec-title">✦ 我的订单</div><div class="order-list" id="orderList">加载中…</div><div class="btn-row"><button class="btn ghost" id="btnLogout">退出本地账户</button></div>`;
+    $("btnLogout").onclick=()=>{localStorage.removeItem(LOCAL_ACCOUNT_KEY);localStorage.removeItem(LOCAL_MEMBER_KEY);showToast("已退出本地账户");updateMemberBadge();updateNewbieBanner();openAccount();};
+    if(canClaim){
+      const claimBtn=$("btnClaimHere");
+      if(claimBtn) claimBtn.onclick=()=>{claimBtn.disabled=true; claimBtn.textContent="领取中…"; maybeClaimNewUser().then(()=>{claimBtn.disabled=false; claimBtn.textContent="领取新人礼";});};
+      maybeClaimNewUser(); // 静默重试（登录时若网络失败）
+    }
     const list=$("orderList");
     if(sbConfigured()){
       sbRpc("my_orders",{p_device:getDeviceId()}).then(orders=>{
@@ -1354,7 +1412,7 @@ function openAccount(){
     }
   }else{
     content.innerHTML=`<h2 class="modal-title" id="toolTitle">登录星夜塔罗</h2><p class="modal-sub">本地体验版账户仅保存在当前浏览器，用于测试会员与推广流程。</p><form class="api-form" id="loginForm"><label>昵称<input id="loginName" maxlength="16" required placeholder="给自己起一个名字"></label><label>邮箱（选填）<input id="loginEmail" type="email" placeholder="name@example.com"></label><div class="btn-row"><button class="btn primary" type="submit">进入星夜塔罗</button></div></form>`;
-    $("loginForm").onsubmit=event=>{event.preventDefault();const account={name:$("loginName").value.trim(),email:$("loginEmail").value.trim(),createdAt:Date.now()};localStorage.setItem(LOCAL_ACCOUNT_KEY,JSON.stringify(account));showToast("登录成功");updateMemberBadge();openAccount();};
+    $("loginForm").onsubmit=event=>{event.preventDefault();const account={name:$("loginName").value.trim(),email:$("loginEmail").value.trim(),createdAt:Date.now()};localStorage.setItem(LOCAL_ACCOUNT_KEY,JSON.stringify(account));showToast("登录成功");updateMemberBadge();updateNewbieBanner();openAccount();maybeClaimNewUser();};
   }
   $("toolModal").classList.remove("hidden");
 }
@@ -1495,7 +1553,7 @@ function openPromotionSecure(){
   if(!requireLocalAccount()) return;
   if(sbConfigured()){ openPromotionReal(); return; }
   const content=$("toolContent"), link=`${location.href.split("?")[0]}?ref=${getReferralCode()}`, referrer=getReferrer();
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">本地活动预览。配置收款后自动切换为真实返利。</p><section class="promo-banner"><h3>${referrer?"你已获得好友邀请":"邀请好友，分享一束星光"}</h3><p>${referrer?"首单可减 ¥0.50；完成后邀请人会获得 1 次 AI 解读额度。":"每位好友完成首单后，好友立减 ¥0.50，你将获得 1 次官方 AI 解读额度。"}</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友完成首单</div><div class="promo-step"><b>03</b>奖励自动到账</div></div></section><div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></div>`;
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">本地活动预览。配置收款后自动切换为真实返利。</p><section class="promo-banner"><h3>${referrer?"你已获得好友邀请":"邀请好友，分享一束星光"}</h3><p>${referrer?"注册新用户后，你和邀请人各得 1 次免费深度解析。":"每位好友通过你的链接注册，你和 TA 各得 1 次官方 AI 深度解析。"}</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友注册新用户</div><div class="promo-step"><b>03</b>双方各 +1 次解析</div></div></section><div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></div>`;
   $("btnCopyPromo").onclick=()=>copyText(link).then(()=>showToast("推广链接已复制"));
   $("toolModal").classList.remove("hidden");
 }
@@ -1505,11 +1563,11 @@ async function openPromotionReal(){
   if(sbConfigured()){
     try{ const pub=await sbRpc("pub_settings",{}); if(pub&&pub.rebate_rate!=null){ rate=Number(pub.rebate_rate); discount=Number(pub.discount); } }catch(e){ /* 用兜底值 */ }
   }
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">好友通过你的链接完成首单：好友立减 ¥${Number(discount).toFixed(2)}，你获得返利——现金 ${Math.round(rate*100)}% 或 1 次解读额度，自选。</p>
-  <section class="promo-banner"><h3>邀请好友，分享一束星光</h3><p>现金返利由店主人工确认后转账；解读额度可随时兑换成 AI 解读次数。</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友完成首单</div><div class="promo-step"><b>03</b>返利到账</div></div></section>
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">好友通过你的链接<b>注册新用户</b>：你和 TA 各 +1 次免费深度解析（上不封顶）；好友购买会员时你还有额外奖励。</p>
+  <section class="promo-banner"><h3>每拉 1 个新用户 = 1 次免费深度解析</h3><p>无需好友付费，只要 TA 通过你的链接创建账户完成注册，你和 TA 各得 1 次官方 AI 深度解析机会。多邀多得，自动到账。</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友注册新用户</div><div class="promo-step"><b>03</b>双方各 +1 次解析</div></div></section>
   <div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div><p id="promoStats" style="font-size:12px;color:var(--muted);margin-top:12px">加载中…</p></div>
-  <section class="referral-box"><h3>返利设置</h3><div class="field-row"><label>昵称（店主结算确认用）</label><input class="member-input" id="refNick" maxlength="20" placeholder="你的昵称"></div>
-  <div class="field-row"><label>返利方式</label><select id="refType"><option value="cash">现金返利（店主人工转账）</option><option value="credit">解读额度（自动到账）</option></select></div>
+  <section class="referral-box"><h3>结算设置（选填）</h3><div class="field-row"><label>昵称（店主结算确认用）</label><input class="member-input" id="refNick" maxlength="20" placeholder="你的昵称"></div>
+  <div class="field-row"><label>好友购买会员时的额外奖励</label><select id="refType"><option value="credit">解读额度（推荐·自动到账）</option><option value="cash">现金返利（店主人工转账 ${Math.round(rate*100)}%）</option></select></div>
   <div class="field-row"><label>收款账号（现金返利必填：微信号或支付宝账号）</label><input class="member-input" id="refAccount" maxlength="40" placeholder="选现金返利时必填"></div>
   <div class="btn-row"><button class="btn primary" id="btnSaveRef">保存设置</button></div></section>`;
   $("btnCopyPromo").onclick=()=>copyText(link).then(()=>showToast("推广链接已复制"));
@@ -1518,9 +1576,10 @@ async function openPromotionReal(){
   try{
     const me=(await sbRpc("my_referrer",{p_code:code}))||{};
     const stats=$("promoStats");
-    stats.innerHTML=`累计现金返利：<b style="color:var(--gold)">¥${Number(me.total_reward||0).toFixed(2)}</b>（待店主结算）　可用解读额度：<b style="color:var(--gold)">${me.credits||0}</b> 次${(me.credits||0)>0?'　<button class="btn ghost" id="btnRedeem">兑换 1 次</button>':""}`;
-    if((me.credits||0)>0) $("btnRedeem").onclick=async()=>{try{const r=await sbRpc("redeem_credit",{p_code:code}); if(r&&r.ok){grantEntitlement("推广额度",1,Date.now()+30*86400000); showToast("已兑换 1 次解读额度"); openPromotionReal();}else{showToast("暂时没有可兑换的额度");}}catch(e){showToast(e.message);} };
-    $("refNick").value=me.nickname||""; $("refType").value=me.payout_type||"cash"; $("refAccount").value=me.payout_account||"";
+    const cash=Number(me.total_reward||0);
+    stats.innerHTML=`已带来好友：<b style="color:var(--gold)">${me.new_users||0}</b> 人　可用深度解析：<b style="color:var(--gold)">${me.credits||0}</b> 次${(me.credits||0)>0?'　<button class="btn ghost" id="btnRedeem">兑换 1 次</button>':""}${cash>0?`　累计现金返利：<b style="color:var(--gold)">¥${cash.toFixed(2)}</b>（待店主结算）`:""}`;
+    if((me.credits||0)>0) $("btnRedeem").onclick=async()=>{try{const r=await sbRpc("redeem_credit",{p_code:code}); if(r&&r.ok){grantEntitlement("推广额度",1,Date.now()+30*86400000); showToast("已兑换 1 次深度解析"); openPromotionReal();}else{showToast("暂时没有可兑换的额度");}}catch(e){showToast(e.message);} };
+    $("refNick").value=me.nickname||""; $("refType").value=me.payout_type||"credit"; $("refAccount").value=me.payout_account||"";
   }catch(e){ /* 首次使用无记录，保持默认 */ }
 }
 
@@ -1532,11 +1591,12 @@ function goHome(){
   closeModal();
   goStage(0);
 }
-$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnVipCta").onclick=openMemberBilling; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
+$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnVipCta").onclick=openMemberBilling; $("btnCopyInvite").onclick=()=>copyText(promoLinkFor(getReferralCode())).then(()=>{showToast("邀请链接已复制，快去分享吧 ✦");}).catch(()=>showToast("复制失败，请到「推广活动」页复制")); $("btnClaimNewbie").onclick=openAccount; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
 
 /* init */
 buildDeck();
 updateMemberBadge();
+updateNewbieBanner();
 if(autoPayEnabled()){
   /* 易支付付款后跳回本站 ?pay=return&order=xxx：自动确认并同步权益 */
   const payParams=new URLSearchParams(location.search);
