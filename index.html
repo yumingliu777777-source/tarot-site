@@ -1286,10 +1286,10 @@ const promoLinkFor = code => `${location.origin}${location.pathname}?ref=${code}
 const TAROT_SUPABASE = {
   url: "https://mkpwkjtuxsklptseemrf.supabase.co",
   anonKey: "sb_publishable_wYXeekHAru_NXDl9wuBakw_7n-vuHGH",        // Settings → API → anon public key
-  payApi: "https://tarot-site-one.vercel.app",         // 自动化支付后端（易支付+自动发码）；留空=个人码人工确认
+  payApi: "",         // 自动化支付后端（易支付+自动发码）；留空=个人码人工确认（当前模式）
   aiApi: "https://tarot-site-one.vercel.app",  // 店主 AI 深度解析后端（和 payApi 同一个 Vercel 域名；填了 payApi 可留空）；留空=用户自带 Key
   qrWechat: "qr-wechat.png",
-  qrAlipay: "qr-alipay.png",
+  qrAlipay: "qr-alipay.png",  // 未使用（本店仅微信收款）
   contact: "",        // 你的微信号，买家付完款后联系你确认
   rebateRate: 0.30,   // 现金返利比例（展示兜底；实际以数据库 settings 表为准）
   discount: 0.50      // 好友首单立减金额（展示兜底；实际以数据库 settings 表为准）
@@ -1569,9 +1569,9 @@ function renderMemberCheckout(state){
     html+=`<section class="order-info"><b>✦ 支付成功，会员权益已到账</b><br>方案：${plan.name}<br>AI 解读额度：<b style="color:var(--gold)">${getCredits()}</b> 次<br>有效期至：${member&&member.expires?new Date(member.expires).toLocaleDateString("zh-CN"):"--"}${s.orderNo?`<br>订单号：${s.orderNo}`:""}</section>`;
     html+=`<div class="btn-row"><button class="btn primary" id="btnStartUse">开始占卜</button><button class="btn ghost" id="btnAgain">再开通一份</button></div>`;
   }else if(s.step==="pay"&&s.quote){
-    html+=`<section class="qr-box"><h3 style="color:var(--gold-hi);font:16px var(--serif);letter-spacing:.1em">请扫码支付</h3>
-      <img id="qrImg" src="${s.method==="alipay"?TAROT_SUPABASE.qrAlipay:TAROT_SUPABASE.qrWechat}" alt="收款码">
-      <p class="qr-note">收款方：星夜塔罗店主<br>应付金额：<b style="color:var(--gold)">¥${Number(s.quote.price).toFixed(2)}</b>（${plan.name}）${s.quote.discount>0?`<br>含好友首单立减 ¥${Number(s.quote.discount).toFixed(2)}`:""}<br>请用<b>${s.method==="alipay"?"支付宝":"微信"}</b>扫码支付，付款后点击下方按钮</p>
+    html+=`<section class="qr-box"><h3 style="color:var(--gold-hi);font:16px var(--serif);letter-spacing:.1em">请扫码支付（微信）</h3>
+      <img id="qrImg" src="${TAROT_SUPABASE.qrWechat}" alt="微信收款码">
+      <p class="qr-note">收款方：星夜塔罗店主<br>应付金额：<b style="color:var(--gold)">¥${Number(s.quote.price).toFixed(2)}</b>（${plan.name}）${s.quote.discount>0?`<br>含好友首单立减 ¥${Number(s.quote.discount).toFixed(2)}`:""}<br>订单号：<b style="color:var(--gold)">${s.orderNo||"--"}</b><br><span style="color:#e8cf8f">⚠️ 付款时请在「备注 / 附言」里填写上面的订单号，方便店主核对到账！</span><br>付完点击下方「我已完成付款」</p>
       <div class="btn-row"><button class="btn primary" id="btnPaid">我已完成付款</button><button class="btn ghost" id="btnBackPlan">返回改选</button></div></section>`;
   }else if(s.step==="done"){
     html+=`<section class="order-info"><b>订单已提交</b><br>订单号：${s.orderNo||"--"}<br>方案：${plan.name}　金额：¥${s.quote?Number(s.quote.price).toFixed(2):""}${TAROT_SUPABASE.contact?`<br>若已付款，加店主微信「${TAROT_SUPABASE.contact}」发送订单号，确认后店主会发你激活码。`:"<br>若已付款，联系店主发送订单号，确认后你会收到激活码。"}</section>`;
@@ -1579,7 +1579,7 @@ function renderMemberCheckout(state){
   }else{
     html+=`<div class="plan-grid">${MEMBER_PLANS.map((p,i)=>`<button class="plan ${(i===0&&!s.planId)||p.id===s.planId?"selected":""}" data-plan="${p.id}"><h4>${p.name}</h4><div class="price">¥${p.price}</div><p>${p.detail}</p></button>`).join("")}</div>`;
     html+=`<section class="referral-box"><h3>推荐码（选填）</h3><p>好友推荐首单立减 ¥${Number(TAROT_SUPABASE.discount).toFixed(2)}。</p><input class="member-input" id="refInput" maxlength="8" placeholder="粘贴好友的推荐码" value="${storedRef}"></section>`;
-    html+=`<div class="checkout-options"><button class="pay-option ${s.method==="wechat"?"selected":""}" data-pay="wechat">微信支付</button><button class="pay-option ${s.method==="alipay"?"selected":""}" data-pay="alipay">支付宝</button></div>`;
+    html+=`<div class="checkout-options"><button class="pay-option ${s.method==="wechat"?"selected":""}" data-pay="wechat">微信扫码支付</button></div>`;
     html+=`<div class="btn-row"><button class="btn primary" id="btnNext">${AUTO?"去支付":"下一步：扫码支付"}</button></div>`;
   }
   if(s.err) html+=`<p style="color:#e08a8a;font-size:12px;margin-top:12px">${s.err}</p>`;
@@ -1599,7 +1599,7 @@ function renderMemberCheckout(state){
     const again=q("#btnAgain");
     if(again) again.onclick=()=>renderMemberCheckout({step:"plan",planId:s.planId,method:s.method});
   }else if(s.step==="pay"){
-    q("#btnPaid").onclick=async()=>{try{const r=await sbRpc("create_order",{p_plan:s.planId,p_method:s.method,p_referrer:s.ref||"",p_device:getDeviceId()}); localStorage.setItem(LOCAL_ORDER_KEY,JSON.stringify({orderNo:r.order_no,planName:plan.name,status:"pending",createdAt:Date.now()})); renderMemberCheckout({step:"done",planId:s.planId,method:s.method,quote:s.quote,orderNo:r.order_no}); showToast("订单已提交");}catch(e){renderMemberCheckout({...s,err:e.message});} };
+    q("#btnPaid").onclick=()=>{ renderMemberCheckout({step:"done",planId:s.planId,method:s.method,quote:s.quote,orderNo:s.orderNo}); showToast("订单已提交，等待店主确认到账"); };
     q("#btnBackPlan").onclick=()=>renderMemberCheckout({step:"plan",planId:s.planId,method:s.method,ref:s.ref});
   }else if(s.step==="done"){
     q("#btnAgain").onclick=()=>renderMemberCheckout({step:"plan",planId:s.planId,method:s.method,ref:s.ref});
@@ -1607,10 +1607,17 @@ function renderMemberCheckout(state){
     q("#btnNext").onclick=async()=>{
       const ref=(q("#refInput")?.value||"").trim().toUpperCase();
       if(ref&&!/^[A-Z0-9]{4,8}$/.test(ref)){renderMemberCheckout({...s,err:"推荐码格式不对（4-8位字母数字）"});return;}
-      const meth=q(".pay-option.selected")?.dataset.pay||s.method;
+      const meth="wechat";
       const next={...s,ref:ref||getStoredReferrer(),method:meth};
       if(AUTO){ await startAutoPay(next); }
-      else{ try{const quote=await sbRpc("quote_order",{p_plan:s.planId,p_referrer:ref||"",p_device:getDeviceId()}); renderMemberCheckout({step:"pay",planId:s.planId,method:meth,ref:ref||getStoredReferrer(),quote});}catch(e){renderMemberCheckout({...s,err:e.message});} }
+      else{
+        try{
+          const quote=await sbRpc("quote_order",{p_plan:s.planId,p_referrer:ref||"",p_device:getDeviceId()});
+          const order=await sbRpc("create_order",{p_plan:s.planId,p_method:meth,p_referrer:ref||"",p_device:getDeviceId()});
+          localStorage.setItem(LOCAL_ORDER_KEY,JSON.stringify({orderNo:order.order_no,planName:plan.name,status:"pending",createdAt:Date.now()}));
+          renderMemberCheckout({step:"pay",planId:s.planId,method:meth,ref:ref||getStoredReferrer(),quote,orderNo:order.order_no});
+        }catch(e){renderMemberCheckout({...s,err:e.message});}
+      }
     };
     content.querySelectorAll("[data-plan]").forEach(b=>b.onclick=()=>{content.querySelectorAll("[data-plan]").forEach(x=>x.classList.toggle("selected",x===b)); s.planId=b.dataset.plan;});
     content.querySelectorAll("[data-pay]").forEach(b=>b.onclick=()=>{content.querySelectorAll("[data-pay]").forEach(x=>x.classList.toggle("selected",x===b)); s.method=b.dataset.pay;});
