@@ -1280,6 +1280,7 @@ async function generateAiReportV2(){
   if(!state.drawn.length) return;
   const ownerAI = aiApiBase() !== "";   // 店主 API 模式（用户无需自带 Key，额度服务端扣）
   if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
+    if(ownerAI && getSession()){ await refreshAccount(); }   // 先同步服务器上的最新额度，避免缓存过期误判
     if(ownerAI && !getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
     if(getCredits()<1){
       if(getSession()){ openMemberBilling(); showToast("深度解析额度已用完：邀请好友注册即可获得"); }
