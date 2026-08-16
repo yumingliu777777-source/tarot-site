@@ -106,7 +106,7 @@ create table if not exists accounts (
   created_at timestamptz not null default now()
 );
 create index if not exists idx_accounts_ref on accounts(ref_code);
-create index if not exists idx_accounts_ip on accounts(client_ip);
+-- 注：idx_accounts_ip 在下方补列语句之后创建（老库需要先补列才能建索引）
 
 create table if not exists sessions (
   token text primary key,                     -- 随机会话令牌（仅存前端 localStorage）
