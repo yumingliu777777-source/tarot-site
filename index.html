@@ -70,8 +70,8 @@ body{
 /* ── Layout ─────────────────────────────────────────── */
 .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:28px 20px 80px}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px}
-.header-tools{display:flex;align-items:center;gap:8px}
-.tool-btn{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:rgba(17,17,26,.82);color:var(--gold);cursor:pointer;font-size:15px;transition:all .25s var(--ease)}
+.header-tools{display:flex;align-items:center;gap:7px}
+.tool-btn{min-height:34px;border:1px solid var(--line);border-radius:3px;background:rgba(17,17,26,.82);color:var(--gold-hi);cursor:pointer;padding:0 10px;font:12px var(--sans);letter-spacing:.08em;white-space:nowrap;transition:all .25s var(--ease)}
 .tool-btn:hover{border-color:var(--gold);color:var(--gold-hi);transform:translateY(-2px)}
 .brand{display:flex;align-items:center;gap:12px;border:0;padding:0;background:transparent;text-align:left;cursor:pointer}
 .brand:hover .sigil{border-color:var(--gold);box-shadow:0 0 20px rgba(201,169,87,.2)}
@@ -286,7 +286,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
   .moon{width:80px;height:80px;top:6vh;right:6vw}
   .steps{grid-template-columns:1fr}
   .intro-block{padding:20px 20px 18px}
-  .header-tools{gap:5px}.tool-btn{width:30px;height:30px;font-size:13px}.modal-panel{padding:22px 16px}.daily-card{grid-template-columns:1fr}.daily-card .thumb{height:150px;width:92px}.history-item{grid-template-columns:1fr}.history-item time{grid-row:1}.dict-toolbar{flex-wrap:wrap}.dict-filter{height:40px}
+  header{align-items:flex-start;gap:10px}.header-tools{gap:5px;justify-content:flex-end;flex-wrap:wrap}.tool-btn{min-height:30px;padding:0 8px;font-size:11px}.modal-panel{padding:22px 16px}.daily-card{grid-template-columns:1fr}.daily-card .thumb{height:150px;width:92px}.history-item{grid-template-columns:1fr}.history-item time{grid-row:1}.dict-toolbar{flex-wrap:wrap}.dict-filter{height:40px}
   .plan-grid{grid-template-columns:1fr}.checkout-options{flex-direction:column}
   .benefit-grid,.promo-steps{grid-template-columns:1fr}
 }
@@ -309,13 +309,13 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
       </div>
     </button>
     <div class="header-tools" aria-label="塔罗工具">
-      <button class="tool-btn" id="btnDaily" title="每日一签" aria-label="每日一签">☀</button>
-      <button class="tool-btn" id="btnHistory" title="抽牌历史" aria-label="抽牌历史">◷</button>
-      <button class="tool-btn" id="btnDict" title="牌意词典" aria-label="牌意词典">⌕</button>
-      <button class="tool-btn" id="btnApi" title="AI 接口设置" aria-label="AI 接口设置">⚙</button>
-      <button class="tool-btn" id="btnMember" title="灵感会员" aria-label="灵感会员">¥</button>
-      <button class="tool-btn" id="btnPromo" title="推广活动" aria-label="推广活动">✦</button>
-      <button class="tool-btn" id="btnAccount" title="登录与账户" aria-label="登录与账户">◉</button>
+      <button class="tool-btn" id="btnDaily">每日一签</button>
+      <button class="tool-btn" id="btnHistory">历史记录</button>
+      <button class="tool-btn" id="btnDict">牌意词典</button>
+      <button class="tool-btn" id="btnApi">AI 设置</button>
+      <button class="tool-btn" id="btnMember">VIP 会员</button>
+      <button class="tool-btn" id="btnPromo">推广活动</button>
+      <button class="tool-btn" id="btnAccount">我的</button>
     </div>
     <div class="step-dots">
       <div class="dot on" id="dot0"></div>
