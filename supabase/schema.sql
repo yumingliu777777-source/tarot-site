@@ -122,6 +122,10 @@ alter table sessions enable row level security;
 
 -- 管理员标记：把某个账号设为店主管理员（在 SQL Editor 里执行，见 SETUP.md）
 alter table accounts add column if not exists is_admin boolean not null default false;
+-- 老库升级：补齐防刷/封号相关列（新建库时 create table 已包含，这里保证老库也有）
+alter table accounts add column if not exists client_ip text;
+alter table accounts add column if not exists is_banned boolean not null default false;
+create index if not exists idx_accounts_ip on accounts(client_ip);
 
 -- ============================================================
 -- 内部工具（不给网站调用，仅内部函数使用）
