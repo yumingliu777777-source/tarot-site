@@ -276,7 +276,17 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 .account-summary{display:flex;gap:14px;align-items:center;padding:18px;background:var(--panel);border:1px solid var(--line);margin-bottom:18px}.avatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--gold-dim);color:#17130a;font:22px var(--serif)}.account-summary h3{font:18px var(--serif);color:var(--gold-hi);letter-spacing:.1em}.account-summary p{font-size:12px;color:var(--muted);margin-top:4px}.benefit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.benefit{background:var(--panel);border:1px solid var(--line);padding:14px}.benefit strong{display:block;color:var(--gold-hi);font:20px var(--serif)}.benefit span{font-size:11px;color:var(--muted)}.promo-banner{border:1px solid rgba(123,108,214,.5);background:rgba(123,108,214,.09);padding:20px;margin-bottom:16px}.promo-banner h3{font:19px var(--serif);color:var(--gold-hi);letter-spacing:.1em}.promo-banner p{font-size:13px;color:var(--muted);line-height:1.8;margin:8px 0}.promo-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}.promo-step{padding:13px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted);line-height:1.65}.promo-step b{display:block;color:var(--gold);font-size:16px;margin-bottom:4px}
 .qr-box{display:grid;justify-items:center;gap:12px;padding:22px 18px;background:var(--panel);border:1px solid rgba(201,169,87,.45);margin-top:16px}.qr-box img{width:200px;height:200px;border:1px solid var(--line);background:#fff;padding:8px}.qr-note{font-size:12px;color:var(--muted);line-height:1.8;text-align:center}.order-info{background:var(--panel);border:1px solid rgba(201,169,87,.45);padding:18px;margin-top:16px;font-size:13px;color:var(--ink);line-height:2}.order-info b{color:var(--gold-hi)}.member-input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:10px;font:13px var(--sans);outline:none}.member-input:focus{border-color:var(--gold)}.code-row{display:flex;gap:8px;margin-top:10px}.code-row .member-input{flex:1}.field-row{display:grid;gap:6px;margin-top:12px}.field-row label{font-size:11px;letter-spacing:.12em;color:var(--muted)}.field-row select{background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:10px;font:13px var(--sans)}
 /* 登录/注册 */
-.auth-tabs{display:flex;gap:6px;margin-bottom:16px}.auth-tab{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:11px;cursor:pointer;font:14px var(--sans);letter-spacing:.12em}.auth-tab.sel{border-color:var(--gold);color:var(--gold-hi);background:rgba(201,169,87,.08)}
+.auth-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}.auth-tab{flex:1;min-width:96px;border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:11px;cursor:pointer;font:14px var(--sans);letter-spacing:.12em}.auth-tab.sel{border-color:var(--gold);color:var(--gold-hi);background:rgba(201,169,87,.08)}
+/* 店主后台 */
+.admin-list{display:grid;gap:8px;margin-top:4px}
+.admin-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);font-size:12px;flex-wrap:wrap}
+.admin-row b{color:var(--gold-hi);font-family:var(--serif);letter-spacing:.05em;font-size:13px}
+.admin-row .od{color:var(--muted);font-size:11px;margin-top:3px}
+.admin-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.admin-actions .btn{padding:5px 10px;font-size:11px;min-height:0;letter-spacing:.05em}
+.admin-actions .btn.danger{border-color:rgba(176,85,79,.5);color:#d98a7a}
+.muted{color:var(--muted)}
+.admin-note{font-size:11px;color:var(--gold-dim);letter-spacing:.06em;margin-top:14px;line-height:1.8}
 @media (max-width:760px){
   .spread-grid{grid-template-columns:1fr;max-width:420px}
   .qr-box img{width:170px;height:170px}
@@ -1342,7 +1352,7 @@ async function refreshAccount(){
   try{
     const r=await sbRpc("me",{p_token:token});
     if(r && r.ok){
-      const acc={username:r.username,nickname:r.nickname,credits:r.credits,ref_code:r.ref_code,referrer:r.referrer||"",createdAt:r.created_at||""};
+      const acc={username:r.username,nickname:r.nickname,credits:r.credits,ref_code:r.ref_code,referrer:r.referrer||"",createdAt:r.created_at||"",is_admin:!!r.is_admin};
       localStorage.setItem(ACCOUNT_KEY, JSON.stringify(acc));
       updateMemberBadge();
       return acc;
@@ -1436,8 +1446,9 @@ function openAccountReal(){
   if(!token){ renderAuthForm(content); return; }
   const acc=readCachedAccount();
   const initials=(acc?.nickname||acc?.username||"星").slice(0,1);
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(acc?.nickname||acc?.username||"星夜旅人")}</h3><p>@${escapeHtml(acc?.username||"")} · 额度跟账号走，换设备登录后依然可用</p></div></section><div class="benefit-grid"><div class="benefit"><strong id="statCredits">${acc?.credits||0}</strong><span>深度解析次数</span></div><div class="benefit"><strong id="statNew">…</strong><span>已拉新人数</span></div><div class="benefit"><strong>${acc?.createdAt?String(acc.createdAt).slice(0,10):"--"}</strong><span>注册日期</span></div></div><section class="referral-box"><h3>我的专属邀请链接</h3><p>好友用此链接注册，你和 TA 各 +1 次免费深度解析，多邀多得。</p><div class="referral-link"><input id="promoLink" readonly value="${promoLinkFor(acc?.ref_code||"")}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></section><div class="btn-row"><button class="btn ghost" id="btnEditProfile">修改昵称</button><button class="btn ghost" id="btnChangePwd">修改密码</button><button class="btn ghost" id="btnLogout">退出登录</button></div><div id="editPanel"></div>`;
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(acc?.nickname||acc?.username||"星夜旅人")}</h3><p>@${escapeHtml(acc?.username||"")} · 额度跟账号走，换设备登录后依然可用</p></div></section><div class="benefit-grid"><div class="benefit"><strong id="statCredits">${acc?.credits||0}</strong><span>深度解析次数</span></div><div class="benefit"><strong id="statNew">…</strong><span>已拉新人数</span></div><div class="benefit"><strong>${acc?.createdAt?String(acc.createdAt).slice(0,10):"--"}</strong><span>注册日期</span></div></div><section class="referral-box"><h3>我的专属邀请链接</h3><p>好友用此链接注册，你和 TA 各 +1 次免费深度解析，多邀多得。</p><div class="referral-link"><input id="promoLink" readonly value="${promoLinkFor(acc?.ref_code||"")}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></section><div class="btn-row">${acc?.is_admin?'<button class="btn primary" id="btnAdmin" style="padding:10px 26px;font-size:13px">⚙ 管理后台</button>':""}<button class="btn ghost" id="btnEditProfile">修改昵称</button><button class="btn ghost" id="btnChangePwd">修改密码</button><button class="btn ghost" id="btnLogout">退出登录</button></div><div id="editPanel"></div>`;
   $("btnCopyPromo").onclick=()=>copyText(promoLinkFor(acc?.ref_code||"")).then(()=>showToast("邀请链接已复制"));
+  if(acc?.is_admin && $("btnAdmin")) $("btnAdmin").onclick=openAdmin;
   $("btnLogout").onclick=async()=>{ try{ await sbRpc("logout_account",{p_token:token}); }catch(e){} clearSession(); showToast("已退出登录"); updateMemberBadge(); updateNewbieBanner(); openAccountReal(); };
   $("btnEditProfile").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="nickForm"><label>新昵称<input id="nickInput" maxlength="20" value="${escapeHtml(acc?.nickname||"")}"></label><div class="btn-row"><button class="btn primary" type="submit">保存</button></div></form>`; $("nickForm").onsubmit=async e=>{e.preventDefault(); try{ const r=await sbRpc("update_profile",{p_token:token,p_nickname:$("nickInput").value.trim()}); if(r&&r.ok){ await refreshAccount(); showToast("昵称已更新"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };
   $("btnChangePwd").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="pwdForm"><label>原密码<input id="pwdOld" type="password" autocomplete="current-password"></label><label>新密码（至少6位）<input id="pwdNew" type="password" autocomplete="new-password"></label><label>确认新密码<input id="pwdNew2" type="password" autocomplete="new-password"></label><div class="btn-row"><button class="btn primary" type="submit">修改</button></div></form>`; $("pwdForm").onsubmit=async e=>{e.preventDefault(); if($("pwdNew").value!==$("pwdNew2").value){showToast("两次输入的新密码不一致");return;} try{ const r=await sbRpc("change_password",{p_token:token,p_old:$("pwdOld").value,p_new:$("pwdNew").value}); if(r&&r.ok){ showToast("密码已修改"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };
@@ -1481,7 +1492,7 @@ function renderAuthForm(content){
       if(mode==="login"){
         const r=await sbRpc("login_account",{p_username:username,p_password:password});
         if(!(r&&r.token)) throw new Error("登录失败");
-        saveSession(r.token,{username:r.username,nickname:r.nickname,credits:r.credits,ref_code:r.ref_code,referrer:"",createdAt:""});
+        saveSession(r.token,{username:r.username,nickname:r.nickname,credits:r.credits,ref_code:r.ref_code,referrer:"",createdAt:"",is_admin:false});
         showToast("登录成功 ✦");
       }else{
         const nick=$("authNick").value.trim();
@@ -1490,12 +1501,14 @@ function renderAuthForm(content){
         if(password!==pwd2){ throw new Error("两次输入的密码不一致"); }
         const r=await sbRpc("register_account",{p_username:username,p_password:password,p_nickname:nick,p_referrer:ref2,p_device:getDeviceId()});
         if(!(r&&r.token)) throw new Error("注册失败");
-        saveSession(r.token,{username:r.username,nickname:r.nickname,credits:r.credits,ref_code:r.ref_code,referrer:ref2,createdAt:""});
+        saveSession(r.token,{username:r.username,nickname:r.nickname,credits:r.credits,ref_code:r.ref_code,referrer:ref2,createdAt:"",is_admin:false});
         showToast(ref2?"🎉 注册成功！你和好友各 +1 次免费深度解析":"注册成功，快去邀请好友吧 ✦");
       }
+      await refreshAccount();  // 拉取完整资料（含 is_admin / 余额）
       updateMemberBadge();
       updateNewbieBanner();
-      openAccountReal();
+      if(pendingAdminIntent){ pendingAdminIntent=false; openAdmin(); }
+      else openAccountReal();
     }catch(err){
       showToast(err.message||"操作失败，请稍后再试");
       submit.disabled=false; submit.textContent=mode==="login"?"登 录":"注册并领取新人礼";
@@ -1674,6 +1687,135 @@ async function openPromotionReal(){
   }catch(e){ const st=$("promoStats"); if(st) st.innerHTML=`已拉新：—　可用深度解析：${acc.credits||0} 次`; }
 }
 
+/* ══════════ 店主后台 ══════════ */
+let pendingAdminIntent=false;
+let adminTab="overview";
+let adminOrderFilter="";
+let adminCodeFilter="unused";
+function openAdmin(){
+  if(!sbConfigured()){ showToast("配置 Supabase 后即可使用后台"); return; }
+  if(!getSession()){ pendingAdminIntent=true; openAccount(); showToast("请先登录管理员账号"); return; }
+  refreshAccount().then(acc=>{
+    if(!acc || !acc.is_admin){ showToast("无管理员权限"); pendingAdminIntent=false; openAccountReal(); return; }
+    renderAdmin();
+  });
+}
+function renderAdmin(){
+  const content=$("toolContent");
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">⚙ 店主后台</h2>
+  <div class="auth-tabs" id="adminTabs">
+    <button class="auth-tab sel" data-tab="overview">概览</button>
+    <button class="auth-tab" data-tab="users">用户</button>
+    <button class="auth-tab" data-tab="orders">订单</button>
+    <button class="auth-tab" data-tab="rebates">返利</button>
+    <button class="auth-tab" data-tab="codes">卡密</button>
+    <button class="auth-tab" data-tab="settings">设置</button>
+  </div>
+  <div id="adminBody"><div class="pay-wait"><div class="spinner"></div>加载中…</div></div>
+  <p class="admin-note">提示：标记订单「已支付」会自动发卡密并生成返利台账；用户额度可随时手动调整。</p>`;
+  content.querySelectorAll("#adminTabs .auth-tab").forEach(btn=>btn.onclick=()=>{
+    adminTab=btn.dataset.tab;
+    content.querySelectorAll("#adminTabs .auth-tab").forEach(x=>x.classList.toggle("sel",x===btn));
+    loadAdminTab();
+  });
+  $("toolModal").classList.remove("hidden");
+  loadAdminTab();
+}
+async function loadAdminTab(){
+  const body=$("adminBody");
+  if(!body) return;
+  body.innerHTML=`<div class="pay-wait"><div class="spinner"></div>加载中…</div>`;
+  const token=getSession();
+  try{
+    if(adminTab==="overview"){
+      const r=await sbRpc("admin_stats",{p_token:token});
+      if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":(r?.reason||"加载失败"));
+      body.innerHTML=`<div class="benefit-grid"><div class="benefit"><strong>${r.total_users}</strong><span>总注册用户</span></div><div class="benefit"><strong>${r.users_today}</strong><span>今日新增</span></div><div class="benefit"><strong>${r.referred_users}</strong><span>被拉新用户</span></div><div class="benefit"><strong>${r.paid_orders}</strong><span>已支付订单</span></div><div class="benefit"><strong>¥${Number(r.revenue).toFixed(2)}</strong><span>累计收入</span></div><div class="benefit"><strong>${r.pending_orders}</strong><span>待确认订单</span></div><div class="benefit"><strong>${r.pending_rebates}</strong><span>待结算返利</span></div><div class="benefit"><strong>${r.unused_codes}</strong><span>未用卡密</span></div></div>`;
+    }else if(adminTab==="users"){
+      const r=await sbRpc("admin_list_accounts",{p_token:token});
+      if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
+      const rows=(r.list||[]).map(u=>`<div class="admin-row"><div><b>${escapeHtml(u.nickname)}</b> <span class="muted">@${escapeHtml(u.username)}</span>${u.is_admin?' <span class="st-paid">管理员</span>':''}<div class="od">邀请码 ${escapeHtml(u.ref_code)} · 拉新 ${u.referred||0} 人 · ${String(u.created_at||"").slice(0,10)}${u.referrer?` · 经 ${escapeHtml(u.referrer)} 邀请`:""}</div></div><div class="admin-actions"><span class="st-paid">${u.credits} 次</span><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="1">+1</button><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="10">+10</button><button class="btn ghost danger" data-cred="${escapeHtml(u.username)}" data-delta="-1">-1</button></div></div>`).join("");
+      body.innerHTML=`<div class="admin-list">${rows||'<p class="modal-sub">暂无用户</p>'}</div>`;
+      body.querySelectorAll("[data-cred]").forEach(btn=>btn.onclick=async()=>{
+        const uname=btn.dataset.cred, delta=Number(btn.dataset.delta);
+        if(delta<0 && !confirm(`确认给 @${uname} 扣减 ${-delta} 次深度解析额度？`)) return;
+        try{
+          const rr=await sbRpc("admin_set_credits",{p_token:token,p_username:uname,p_delta:delta});
+          if(!rr||rr.ok===false) throw new Error(rr?.reason==="no_user"?"用户不存在":(rr?.reason||"操作失败"));
+          showToast("额度已调整"); loadAdminTab();
+        }catch(e){ showToast(e.message); }
+      });
+    }else if(adminTab==="orders"){
+      const statusText={pending:"待确认",paid:"已支付",cancelled:"已取消"};
+      const r=await sbRpc("admin_list_orders",{p_token:token,p_status:adminOrderFilter});
+      if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
+      const rows=(r.list||[]).map(o=>`<div class="admin-row"><div><b>${escapeHtml(o.plan_name)}</b> · ¥${Number(o.price).toFixed(2)} · <span class="st-${o.status}">${statusText[o.status]||o.status}</span><div class="od">${escapeHtml(o.order_no)} · ${o.pay_method==="alipay"?"支付宝":"微信"}${o.referrer?` · 推荐 ${escapeHtml(o.referrer)}`:""} · ${String(o.created_at||"").slice(0,16).replace("T"," ")}</div></div><div class="admin-actions">${o.status==="pending"?`<button class="btn ghost" data-order="${escapeHtml(o.order_no)}" data-st="paid">标记已支付</button><button class="btn ghost danger" data-order="${escapeHtml(o.order_no)}" data-st="cancelled">取消</button>`:o.status==="paid"?`<button class="btn ghost danger" data-order="${escapeHtml(o.order_no)}" data-st="cancelled">退款/取消</button>`:""}</div></div>`).join("");
+      body.innerHTML=`<div class="auth-tabs" id="orderFilter" style="margin-bottom:10px"><button class="auth-tab ${adminOrderFilter===""?"sel":""}" data-st="">全部</button><button class="auth-tab ${adminOrderFilter==="pending"?"sel":""}" data-st="pending">待确认</button><button class="auth-tab ${adminOrderFilter==="paid"?"sel":""}" data-st="paid">已支付</button><button class="auth-tab ${adminOrderFilter==="cancelled"?"sel":""}" data-st="cancelled">已取消</button></div><div class="admin-list">${rows||'<p class="modal-sub">暂无订单</p>'}</div>`;
+      body.querySelectorAll("#orderFilter .auth-tab").forEach(btn=>btn.onclick=()=>{adminOrderFilter=btn.dataset.st;loadAdminTab();});
+      body.querySelectorAll("[data-order]").forEach(btn=>btn.onclick=async()=>{
+        const orderNo=btn.dataset.order, st=btn.dataset.st;
+        if(st==="paid" && !confirm(`确认订单 ${orderNo} 已到账？将自动发放会员权益并生成返利。`)) return;
+        if(st==="cancelled" && !confirm(`确认${orderNo==="paid"?"退款/":"取消"}订单 ${orderNo}？`)) return;
+        try{
+          const rr=await sbRpc("admin_set_order_status",{p_token:token,p_order_no:orderNo,p_status:st});
+          if(!rr||rr.ok===false) throw new Error(rr?.reason||"操作失败");
+          showToast(st==="paid"?"已标记支付，权益已自动发放":"状态已更新"); loadAdminTab();
+        }catch(e){ showToast(e.message); }
+      });
+    }else if(adminTab==="rebates"){
+      const statusText={pending:"待结算",paid:"已结算",skipped:"已跳过"};
+      const kindText={cash:"现金",credit:"额度"};
+      const r=await sbRpc("admin_list_rebates",{p_token:token});
+      if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
+      const rows=(r.list||[]).map(b=>`<div class="admin-row"><div><b>${kindText[b.kind]||b.kind}${b.amount?` ¥${Number(b.amount).toFixed(2)}`:""}</b> · <span class="st-${b.status}">${statusText[b.status]||b.status}</span><div class="od">订单 ${escapeHtml(b.order_no||"--")} · 推荐人 ${escapeHtml(b.referrer||"--")} · ${String(b.created_at||"").slice(0,16).replace("T"," ")}${b.note?` · ${escapeHtml(b.note)}`:""}</div></div><div class="admin-actions">${b.status==="pending"?`<button class="btn ghost" data-rebate="${b.id}" data-st="paid">已转账</button><button class="btn ghost danger" data-rebate="${b.id}" data-st="skipped">不返</button>`:""}</div></div>`).join("");
+      body.innerHTML=`<div class="admin-list">${rows||'<p class="modal-sub">暂无返利记录</p>'}</div>`;
+      body.querySelectorAll("[data-rebate]").forEach(btn=>btn.onclick=async()=>{
+        if(btn.dataset.st==="paid" && !confirm("确认已转账给推荐人？")) return;
+        try{
+          const rr=await sbRpc("admin_set_rebate_status",{p_token:token,p_id:btn.dataset.rebate,p_status:btn.dataset.st});
+          if(!rr||rr.ok===false) throw new Error(rr?.reason||"操作失败");
+          showToast("已更新"); loadAdminTab();
+        }catch(e){ showToast(e.message); }
+      });
+    }else if(adminTab==="codes"){
+      const r=await sbRpc("admin_list_codes",{p_token:token,p_status:adminCodeFilter});
+      if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
+      const codes=(r.list||[]).map(c=>escapeHtml(c.code)).join("\n");
+      body.innerHTML=`<section class="referral-box"><h3>生成卡密</h3><div class="code-row"><select id="admCodeCount" class="member-input" style="max-width:90px"><option>1</option><option>5</option><option selected>10</option><option>20</option><option>50</option></select><select id="admCodePlan" class="member-input"><option value="single">深度解读 0.99</option><option value="light" selected>轻会员 6.90</option><option value="plus">星夜会员 12.90</option></select><button class="btn primary" id="btnGenCodes">生成</button></div></section>
+      <section class="referral-box"><h3>卡密列表</h3><div class="auth-tabs" id="codeFilter" style="margin-bottom:10px"><button class="auth-tab ${adminCodeFilter==="unused"?"sel":""}" data-st="unused">未用</button><button class="auth-tab ${adminCodeFilter==="used"?"sel":""}" data-st="used">已用</button><button class="auth-tab ${adminCodeFilter===""?"sel":""}" data-st="">全部</button></div><textarea class="member-input" id="admCodeBox" rows="7" readonly placeholder="生成的卡密会显示在这里，发给买家输入激活即可">${codes}</textarea><div class="btn-row"><button class="btn ghost" id="btnCopyCodes">复制全部</button></div></section>`;
+      body.querySelectorAll("#codeFilter .auth-tab").forEach(btn=>btn.onclick=()=>{adminCodeFilter=btn.dataset.st;loadAdminTab();});
+      $("btnGenCodes").onclick=async()=>{
+        try{
+          const rr=await sbRpc("admin_generate_codes",{p_token:token,p_count:Number($("admCodeCount").value),p_plan:$("admCodePlan").value});
+          if(!rr||rr.ok===false) throw new Error("生成失败");
+          const box=$("admCodeBox");
+          const codes2=(rr.codes||[]).join("\n");
+          box.value=box.value?(box.value.replace(/\n$/,"")+"\n"+codes2):codes2;
+          showToast(`已生成 ${(rr.codes||[]).length} 个${$("admCodePlan").selectedOptions[0].text}卡密`);
+        }catch(e){ showToast(e.message); }
+      };
+      $("btnCopyCodes").onclick=()=>copyText($("admCodeBox").value).then(()=>showToast("已复制"));
+    }else if(adminTab==="settings"){
+      const r=await sbRpc("admin_get_settings",{p_token:token});
+      if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
+      const s=r.settings||{};
+      body.innerHTML=`<form class="api-form" id="admSettingsForm"><label>现金返利比例（0-1，如 0.3 = 30%）<input id="admRate" value="${escapeHtml(s.rebate_rate||"0.3")}"></label><label>好友首单立减（元）<input id="admDiscount" value="${escapeHtml(s.discount||"0.5")}"></label><div class="btn-row"><button class="btn primary" type="submit">保存设置</button></div></form>`;
+      $("admSettingsForm").onsubmit=async e=>{
+        e.preventDefault();
+        try{
+          const rate=$("admRate").value.trim(), disc=$("admDiscount").value.trim();
+          if(!/^\d+(\.\d+)?$/.test(rate)||! /^\d+(\.\d+)?$/.test(disc)){ throw new Error("请输入数字"); }
+          await sbRpc("admin_set_setting",{p_token:token,p_key:"rebate_rate",p_value:rate});
+          await sbRpc("admin_set_setting",{p_token:token,p_key:"discount",p_value:disc});
+          showToast("设置已保存");
+        }catch(err){ showToast(err.message); }
+      };
+    }
+  }catch(e){
+    body.innerHTML=`<p style="color:#e08a8a;font-size:12px;line-height:1.8">${escapeHtml(e.message)}</p>`;
+  }
+}
+
 function goHome(){
   stopCylinder();
   state={spread:"single",drawn:[],flipped:0,question:"",fan:[]};
@@ -1710,6 +1852,7 @@ if(autoPayEnabled()){
   }
 }
 if(location.hash.startsWith("#r=")){ const shared=decodePayload(location.hash.slice(3)); if(payloadToState(shared)){ goStage(4); renderReport(); } }
+if(location.hash==="#admin"){ openAdmin(); }
 </script>
 </body>
 </html>

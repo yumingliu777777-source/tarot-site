@@ -117,6 +117,9 @@ alter table accounts enable row level security;
 alter table sessions enable row level security;
 -- （不建 anon 策略：匿名只能通过下面的安全函数注册/登录，不能直接读写表）
 
+-- 管理员标记：把某个账号设为店主管理员（在 SQL Editor 里执行，见 SETUP.md）
+alter table accounts add column if not exists is_admin boolean not null default false;
+
 -- ============================================================
 -- 内部工具（不给网站调用，仅内部函数使用）
 -- ============================================================
@@ -239,7 +242,8 @@ begin
   select * into v_user from accounts where id = v_id;
   return json_build_object('ok', true, 'username', v_user.username, 'nickname', v_user.nickname,
                            'credits', v_user.credits, 'ref_code', v_user.ref_code,
-                           'referrer', v_user.referrer, 'created_at', v_user.created_at);
+                           'referrer', v_user.referrer, 'created_at', v_user.created_at,
+                           'is_admin', v_user.is_admin);
 end $$;
 
 -- 消耗 1 次深度解析（服务端扣减）
@@ -294,6 +298,200 @@ begin
 end $$;
 
 revoke execute on function session_account(text) from public, anon, authenticated;
+
+-- ============================================================
+-- 店主后台（管理员 API）：所有函数都先校验会话是否为管理员（accounts.is_admin）
+-- 启用方法：用普通账号注册后，在 SQL Editor 执行
+--   update accounts set is_admin = true where username = '你的用户名';
+-- ============================================================
+
+-- 内部：管理员会话 → 返回账号 id，否则 null（不给匿名直接调用）
+create or replace function admin_account(p_token text)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_admin boolean;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return null; end if;
+  select is_admin into v_admin from accounts where id = v_id;
+  return case when coalesce(v_admin, false) then v_id else null end;
+end $$;
+
+-- 概览统计
+create or replace function admin_stats(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select json_build_object(
+    'total_users',    (select count(*) from accounts),
+    'users_today',    (select count(*) from accounts where created_at > now() - interval '1 day'),
+    'referred_users', (select count(*) from accounts where referrer is not null),
+    'paid_orders',    (select count(*) from orders where status = 'paid'),
+    'pending_orders', (select count(*) from orders where status = 'pending'),
+    'revenue',        (select coalesce(sum(price), 0) from orders where status = 'paid'),
+    'pending_rebates',(select count(*) from rebates where status = 'pending'),
+    'unused_codes',   (select count(*) from vip_codes where status = 'unused')
+  ) into v;
+  return v;
+end $$;
+
+-- 用户列表（不含密码）
+create or replace function admin_list_accounts(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
+    select username, nickname, ref_code, referrer, credits, is_admin, created_at,
+           (select count(*) from accounts where referrer = a.ref_code) as referred
+    from accounts a
+    limit 300
+  ) x;
+  return json_build_object('ok', true, 'list', v);
+end $$;
+
+-- 调整用户额度（p_delta 可为负数，不会扣成负数）
+create or replace function admin_set_credits(p_token text, p_username text, p_delta int)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  update accounts set credits = greatest(0, credits + p_delta) where username = lower(trim(p_username));
+  if not found then return json_build_object('ok', false, 'reason', 'no_user'); end if;
+  return json_build_object('ok', true);
+end $$;
+
+-- 订单列表（p_status 传空 = 全部）
+create or replace function admin_list_orders(p_token text, p_status text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
+    select order_no, plan_name, price, pay_method, referrer, status, created_at, paid_at
+    from orders
+    where (p_status is null or p_status = '' or status = p_status)
+    limit 300
+  ) x;
+  return json_build_object('ok', true, 'list', v);
+end $$;
+
+-- 改订单状态：标记已支付时自动为买家设备发卡密（幂等，重复操作不重复发码），触发器自动生成返利
+create or replace function admin_set_order_status(p_token text, p_order_no text, p_status text)
+returns json language plpgsql security definer set search_path = public as $$
+declare
+  v_id uuid; v_cur text; v_plan text; v_device text; v_code text; v_days int;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  if p_status not in ('pending','paid','cancelled') then raise exception '未知状态'; end if;
+  select status, plan, device_id into v_cur, v_plan, v_device from orders where order_no = p_order_no;
+  if v_cur is null then return json_build_object('ok', false, 'reason', 'no_order'); end if;
+  if v_cur = p_status then return json_build_object('ok', true); end if; -- 幂等
+  if p_status = 'paid' then
+    if exists (select 1 from orders where order_no = p_order_no and issued_code is not null) then
+      update orders set status = 'paid', paid_at = coalesce(paid_at, now()) where order_no = p_order_no;
+    else
+      v_days := case when v_plan = 'single' then 7 else 30 end;
+      v_code := 'X' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 11));
+      update orders set status = 'paid', paid_at = coalesce(paid_at, now()), issued_code = v_code
+      where order_no = p_order_no;
+      insert into vip_codes (code, plan, status, used_by, activated_at, expires_at)
+      values (v_code, v_plan, 'used', v_device, now(), now() + v_days * interval '1 day');
+    end if;
+  else
+    update orders set status = p_status where order_no = p_order_no;
+  end if;
+  return json_build_object('ok', true);
+end $$;
+
+-- 返利台账
+create or replace function admin_list_rebates(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
+    select id, order_no, referrer, kind, amount, status, note, created_at, settled_at
+    from rebates
+    limit 300
+  ) x;
+  return json_build_object('ok', true, 'list', v);
+end $$;
+
+-- 结算返利（paid=已转账 / skipped=不返）
+create or replace function admin_set_rebate_status(p_token text, p_id uuid, p_status text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  if p_status not in ('pending','paid','skipped') then raise exception '未知状态'; end if;
+  update rebates set status = p_status,
+    settled_at = case when p_status in ('paid','skipped') then coalesce(settled_at, now()) else settled_at end
+  where id = p_id;
+  return json_build_object('ok', true);
+end $$;
+
+-- 读取/修改配置
+create or replace function admin_get_settings(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select coalesce(json_object_agg(key, value), '{}'::json) into v from settings;
+  return json_build_object('ok', true, 'settings', v);
+end $$;
+
+create or replace function admin_set_setting(p_token text, p_key text, p_value text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  if p_key not in ('rebate_rate','discount') then raise exception '未知设置项'; end if;
+  if p_value !~ '^[0-9]+(\.[0-9]+)?$' then raise exception '请输入数字'; end if;
+  insert into settings (key, value) values (p_key, p_value)
+  on conflict (key) do update set value = excluded.value;
+  return json_build_object('ok', true);
+end $$;
+
+-- 生成卡密（管理员包装 generate_codes）
+create or replace function admin_generate_codes(p_token text, p_count int, p_plan text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select coalesce(json_agg(x), '[]'::json) into v from (
+    select generate_codes.code from generate_codes(p_count, p_plan)
+  ) x;
+  return json_build_object('ok', true, 'codes', v);
+end $$;
+
+-- 卡密列表（p_status 传空 = 全部）
+create or replace function admin_list_codes(p_token text, p_status text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
+    select code, plan, status, used_by, activated_at, expires_at, created_at
+    from vip_codes
+    where (p_status is null or p_status = '' or status = p_status)
+    limit 300
+  ) x;
+  return json_build_object('ok', true, 'list', v);
+end $$;
+
+revoke execute on function admin_account(text) from public, anon, authenticated;
 
 -- 报价：买家点"下一步"时显示应付金额（含首单立减）
 create or replace function quote_order(p_plan text, p_referrer text, p_device text)
