@@ -1,0 +1,145 @@
+# 星夜塔罗 · 会员收款 + 推广返利 搭建指南
+
+本网站支持两种收款模式（可并存，自动降级）：
+
+| 模式 | 买家体验 | 你需要做什么 |
+|---|---|---|
+| **A. 自动化支付（推荐）** | 选方案 → 微信/支付宝收银台扫码 → 支付成功**自动到账、自动返利**，无需人工 | 开通一个"易支付"聚合商户 + 把 `api/` 部署到 Vercel（约 20 分钟） |
+| **B. 个人收款码人工确认** | 扫码付款给你的个人码 → 加你微信 → 你确认后手动发激活码 | 只要你的微信/支付宝收款码（约 10 分钟） |
+
+- 模式 A 需要一个小后端保存商户密钥（Vercel 免费档即可），前端仍是静态站。
+- 未配置 Supabase 时，网站自动保持"本地体验"模式，免费功能不受影响。
+- 全程免费（Supabase + Vercel 免费档足够）。
+
+---
+
+## 第 1 步：准备收款方式（2 分钟）
+
+**模式 B（人工确认）**：
+1. 微信：我 → 服务 → 收付款 → 二维码收款 → 保存收款码 → 得到 `qr-wechat.png`
+2. 支付宝：首页搜「收钱」→ 保存收款码 → 得到 `qr-alipay.png`
+3. 用你自己的收款码图片**覆盖**仓库里的 `qr-wechat.png` / `qr-alipay.png`（现在是占位图，务必替换）
+
+**模式 A（自动化支付）**：
+1. 找任意一家"**易支付**"聚合支付开通商户（搜"易支付 免签约"，例如彩虹易支付等；它们都支持微信+支付宝，按套系协议接入，无需营业执照/商户号）
+2. 开通后你会得到：**商户ID（pid）**、**商户密钥（key）**、**网关地址**（形如 `https://pay.xxx.com/submit.php`）
+3. 收款码图片可以不用了（收银台由易支付托管），但保留也无妨
+
+## 第 2 步：注册 Supabase 并建数据库（10 分钟）
+
+1. 打开 https://supabase.com 用邮箱注册（免费，不需要身份证/营业执照）
+2. 登录后点 **New project**：名字随意（如 `tarot`），密码设一个记牢的，区域选离你近的（如 Singapore 或 Tokyo）
+3. 等 1-2 分钟项目建好，左侧菜单点 **SQL Editor** → **New query**
+4. 把仓库里 `supabase/schema.sql` 的全部内容粘贴进去 → **Run**
+   看到 "Success. No rows returned" 就成功了
+5. 点左侧 **Table Editor**，确认能看到 5 张表：`settings` `vip_codes` `orders` `referrers` `rebates`
+
+> 升级提醒：如果你之前建过库，重新粘贴并运行一遍 `schema.sql` 即可（全部是 `create or replace` / `if not exists`，可重复执行）。
+
+## 第 3 步：把密钥填进网站（3 分钟）
+
+1. Supabase 左侧 **Settings → API**（或 Project Settings → API）
+2. 复制 **Project URL**（形如 `https://xxxx.supabase.co`）和 **anon public** 密钥
+3. 编辑 `index.html`，找到 `TAROT_SUPABASE` 配置，填进去：
+
+```js
+const TAROT_SUPABASE = {
+  url: "https://你的项目.supabase.co",
+  anonKey: "粘贴 anon public 密钥",
+  payApi: "https://tarot-pay.vercel.app",  // 模式A必填：自动化支付后端域名（见第4步）
+  qrWechat: "qr-wechat.png",               // 模式B用：你的微信收款码
+  qrAlipay: "qr-alipay.png",               // 模式B用：你的支付宝收款码
+  contact: "你的微信号",   // 模式B用：买家付完款后加你发订单号
+  rebateRate: 0.30,       // 返利比例（展示兜底；实际以数据库 settings 表为准）
+  discount: 0.50          // 好友首单立减（展示兜底；实际以数据库 settings 表为准）
+};
+```
+
+> ⚠️ 填了 `url` + `anonKey` 后，网站才从"本地体验模式"切换成真实收款模式。
+> `payApi` 留空 = 模式 B（个人码人工确认）；填了 = 模式 A（自动化支付）。
+
+## 第 4 步（模式 A）：部署支付后端到 Vercel（10 分钟）
+
+`api/` 目录是一个完整的 Vercel Serverless 支付后端（易支付签名、回调、自动发码、自动返利）。详见 [`api/README.md`](api/README.md)，要点：
+
+1. 把这个仓库推到 GitHub → 打开 https://vercel.com → **Add New Project** 导入仓库（Framework 选 Other）→ Deploy
+2. 在项目 **Settings → Environment Variables** 添加（值从你开通的易支付商户拿）：
+   - `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`（Supabase → Settings → API → service_role，注意不是 anon）
+   - `EPAY_PID`、`EPAY_KEY`、`EPAY_GATEWAY`（如 `https://pay.xxx.com/submit.php`）
+   - `SITE_ORIGIN`（网站真实域名，如 `https://你的用户名.github.io`）
+   - `PAYMENT_TEST_MODE=0`（上线前务必为 0 或删除）
+3. 把部署得到的域名（如 `https://tarot-pay.vercel.app`）填进第 3 步的 `payApi`
+4. **先测再上线**：把 `PAYMENT_TEST_MODE` 临时设为 `1`，重新 Deploy。此时买家点"去支付"会跳到一个"立即支付成功"的测试链接，整个流程（建单→回调→自动发码→自动返利→前端到账）会真实跑一遍，但**不产生真实扣款**。测完改回 `0`。
+
+## 第 5 步：生成激活码（仅模式 B 需要）
+
+Supabase → **SQL Editor**，执行（生成 20 个轻会员码）：
+
+```sql
+select * from generate_codes(20, 'light');
+```
+
+- `single` = 单次深度解读（0.99 元，7 天有效，1 次额度）
+- `light` = 轻会员（6.90 元，30 天，10 次）
+- `plus` = 星夜会员（12.90 元，30 天，30 次）
+
+模式 A 不需要手动生成：买家支付成功后，后端会**自动**为买家生成并预激活一张卡密，权益直接到账。
+
+## 第 6 步：上线（git push）
+
+```bash
+git add -A
+git commit -m "会员收款 + 推广返利（自动化支付）"
+git push origin master
+```
+
+GitHub Pages 自动生效；Vercel 每次 push 自动重新部署后端。
+
+---
+
+## 日常运营流程
+
+### 模式 A（自动化）：基本什么都不用做
+
+买家付款 → 易支付回调 → 自动置订单 paid → 自动返利 + 自动发码 → 买家权益到账。
+你只需要偶尔去 Supabase **Table Editor → orders** 看一眼流水（`status=paid` 即收款成功）。
+
+### 模式 B（人工确认，每单约 1 分钟）
+
+1. 买家在网站选方案 → 扫码付款给你（钱直接进你微信/支付宝，秒到账）
+2. 你手机收到到账提醒，金额和方案对上
+3. Supabase → **Table Editor → orders**，找到对应订单（看 order_no 或时间）
+   把它的 **status 从 pending 改成 paid**（改完保存，返利台账自动生成）
+4. 从 `vip_codes` 里复制一个 unused 的码（或 `select * from generate_codes(1, 'light')`）发给买家
+5. 买家在网站「已有激活码？输入激活」处输入 → 会员立即开通
+
+### 返利结算（两种模式通用）
+
+- 好友成单且订单置 paid 后，**Table Editor → rebates** 自动多一行：
+  - `kind = credit`：已自动给推荐人 +1 解读额度（status=paid），推荐人在「推广活动」页可兑换
+  - `kind = cash`：记录应返金额（status=pending），你在微信/支付宝**手动转账**给推荐人后，
+    把这行 status 改成 `paid` 留底；不想返就改 `skipped`
+- 推荐人没绑收款账号的，note 列会提示你去找 TA 确认
+- 推广页会自动显示数据库里的实时返利比例与首单立减，改 `settings` 表即可全局生效
+
+### 常见操作
+
+| 想做什么 | 怎么做 |
+|---|---|
+| 改返利比例 | Table Editor → settings → rebate_rate（如 0.3 改成 0.5） |
+| 改首单立减 | settings → discount |
+| 买家退款 | orders 改 status=cancelled；若已 paid 另手动处理 rebates |
+| AI 解读恢复免费 | index.html 里 `AI_REPORT_NEEDS_MEMBER` 改成 false |
+| 查收入 | Table Editor → orders（status=paid 的 price 求和） |
+| 买家看订单 | 网站「我的」页会自动列出该设备的订单与状态 |
+
+---
+
+## 注意事项（实话实说）
+
+- **模式 A 的钱去哪了**：易支付是第三方聚合支付，买家付款先进易支付账户，按它们平台的结算周期（通常 T+1 或按平台规则）提现到你绑定的收款账户。**选平台前先确认结算周期与提现手续费**，别选明显可疑的站。
+- **模式 B 没有自动对账**：个人收款码没有官方 API，每笔都得你人工确认到账再发码。金额小、量不大时人工确认完全够用。
+- **推荐码就是推荐人的身份凭证**：推广链接 `?ref=XXXX` 里的码是唯一的身份标识。提醒推荐人别把链接发到公共大群（防止别人冒领返利）；现金返利最终由你人工确认转账，发现异常可以拒付。
+- **安全**：anon key 是公开密钥，可放心放 GitHub Pages；`service_role` 密钥和易支付商户密钥**只存在 Vercel 环境变量**，绝不要提交到仓库。回调一律验签 + 金额对账，重复通知不会重复发码。
+- **隐私**：买家订单、推荐人收款账号都在 Supabase 数据库里，只有你能看。
+- 本文件不包含任何密钥，可以放心提交到公开仓库。

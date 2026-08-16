@@ -274,8 +274,10 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 .api-form{display:grid;gap:14px}.api-form label{display:grid;gap:7px;font-size:12px;letter-spacing:.12em;color:var(--muted)}.api-form input,.api-form select{width:100%;background:var(--panel);border:1px solid var(--line);padding:12px;color:var(--ink);font:14px var(--sans);outline:none}.api-form input:focus,.api-form select:focus{border-color:var(--gold)}.api-note{font-size:12px;color:var(--muted);line-height:1.75}.api-analysis{background:var(--panel);border:1px solid rgba(123,108,214,.4);padding:24px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-size:14px}.api-analysis.loading{color:var(--muted)}
 .member-hero{border:1px solid rgba(201,169,87,.45);background:linear-gradient(135deg,rgba(201,169,87,.13),rgba(123,108,214,.12));padding:20px;margin-bottom:18px}.member-hero h3{font:20px var(--serif);color:var(--gold-hi);letter-spacing:.12em}.member-hero p{font-size:13px;color:var(--muted);line-height:1.8;margin-top:8px}.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.plan{position:relative;text-align:left;background:var(--panel);border:1px solid var(--line);padding:18px;cursor:pointer;transition:.25s var(--ease)}.plan:hover,.plan.selected{border-color:var(--gold);box-shadow:0 0 20px rgba(201,169,87,.12)}.plan h4{font:16px var(--serif);color:var(--gold-hi);letter-spacing:.08em}.plan .price{font:26px var(--serif);color:var(--gold);margin:10px 0 5px}.plan p{font-size:11px;color:var(--muted);line-height:1.65}.referral-box{margin-top:18px;background:var(--panel);border:1px solid var(--line);padding:18px}.referral-box h3{font:16px var(--serif);color:var(--gold-hi);letter-spacing:.1em}.referral-box p{font-size:12px;color:var(--muted);line-height:1.75;margin:8px 0}.referral-link{display:flex;gap:8px}.referral-link input{min-width:0;flex:1;background:var(--bg);border:1px solid var(--line);color:var(--muted);padding:10px;font-size:11px}.checkout-options{display:flex;gap:10px;margin-top:18px}.pay-option{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:13px;cursor:pointer;font:14px var(--sans)}.pay-option.selected{border-color:var(--gold);color:var(--gold-hi)}
 .account-summary{display:flex;gap:14px;align-items:center;padding:18px;background:var(--panel);border:1px solid var(--line);margin-bottom:18px}.avatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--gold-dim);color:#17130a;font:22px var(--serif)}.account-summary h3{font:18px var(--serif);color:var(--gold-hi);letter-spacing:.1em}.account-summary p{font-size:12px;color:var(--muted);margin-top:4px}.benefit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.benefit{background:var(--panel);border:1px solid var(--line);padding:14px}.benefit strong{display:block;color:var(--gold-hi);font:20px var(--serif)}.benefit span{font-size:11px;color:var(--muted)}.promo-banner{border:1px solid rgba(123,108,214,.5);background:rgba(123,108,214,.09);padding:20px;margin-bottom:16px}.promo-banner h3{font:19px var(--serif);color:var(--gold-hi);letter-spacing:.1em}.promo-banner p{font-size:13px;color:var(--muted);line-height:1.8;margin:8px 0}.promo-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}.promo-step{padding:13px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted);line-height:1.65}.promo-step b{display:block;color:var(--gold);font-size:16px;margin-bottom:4px}
+.qr-box{display:grid;justify-items:center;gap:12px;padding:22px 18px;background:var(--panel);border:1px solid rgba(201,169,87,.45);margin-top:16px}.qr-box img{width:200px;height:200px;border:1px solid var(--line);background:#fff;padding:8px}.qr-note{font-size:12px;color:var(--muted);line-height:1.8;text-align:center}.order-info{background:var(--panel);border:1px solid rgba(201,169,87,.45);padding:18px;margin-top:16px;font-size:13px;color:var(--ink);line-height:2}.order-info b{color:var(--gold-hi)}.member-input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:10px;font:13px var(--sans);outline:none}.member-input:focus{border-color:var(--gold)}.code-row{display:flex;gap:8px;margin-top:10px}.code-row .member-input{flex:1}.field-row{display:grid;gap:6px;margin-top:12px}.field-row label{font-size:11px;letter-spacing:.12em;color:var(--muted)}.field-row select{background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:10px;font:13px var(--sans)}
 @media (max-width:760px){
   .spread-grid{grid-template-columns:1fr;max-width:420px}
+  .qr-box img{width:170px;height:170px}
   .card-list{grid-template-columns:1fr}
   .analysis{padding:26px 20px}
   .brand h1{font-size:18px;letter-spacing:.25em}
@@ -292,6 +294,42 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+/* ── VIP 会员角标 ─────────────────────────── */
+.vip-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:20px;
+  font-size:9px;letter-spacing:.12em;color:#17130a;background:linear-gradient(180deg,#e8cf8f,#c9a957);
+  vertical-align:1px;font-weight:700}
+/* ── 首页会员 CTA ─────────────────────────── */
+.vip-cta{margin:34px auto 0;max-width:620px;text-align:center;border:1px solid rgba(201,169,87,.4);
+  background:linear-gradient(135deg,rgba(201,169,87,.12),rgba(123,108,214,.1));
+  border-radius:6px;padding:22px 26px;position:relative;overflow:hidden}
+.vip-cta::before{content:"✦";position:absolute;top:12px;right:16px;color:var(--gold-dim);font-size:12px}
+.vip-cta h3{font-family:var(--serif);font-size:17px;letter-spacing:.24em;color:var(--gold-hi);font-weight:600;margin-bottom:8px}
+.vip-cta p{font-size:12.5px;color:var(--muted);line-height:1.8;letter-spacing:.04em;margin-bottom:14px}
+/* ── 支付等待 / 旋转 ──────────────────────── */
+.spinner{width:34px;height:34px;margin:0 auto 14px;border-radius:50%;
+  border:2px solid rgba(201,169,87,.25);border-top-color:var(--gold);
+  animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pay-wait{text-align:center;padding:30px 10px;font-size:13px;color:var(--muted);line-height:1.9;letter-spacing:.06em}
+/* ── 账户页订单列表 ───────────────────────── */
+.order-list{display:grid;gap:8px;margin-top:16px}
+.order-item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;
+  padding:12px 14px;background:var(--panel);border:1px solid var(--line);font-size:12px}
+.order-item b{color:var(--gold-hi);font-family:var(--serif);font-size:13px;letter-spacing:.06em}
+.order-item .od{color:var(--muted);margin-top:3px;font-size:11px}
+.st-pending{color:#d9a05b}.st-paid{color:var(--ok)}.st-cancelled{color:var(--muted)}
+/* ── 打印：报告浅色化 ─────────────────────── */
+@media print{
+  body{background:#fff!important;color:#111!important}
+  .sky,.moon,header,.btn-row,.foot-note,.modal,.toast,.vip-cta{display:none!important}
+  .wrap{max-width:100%;padding:8px}
+  .report-head .q,.sec-title,.card-item .body h4,.analysis .lead{color:#222!important}
+  .card-item,.analysis,.advice .a{background:#fff!important;border-color:#ddd!important;box-shadow:none!important}
+  .card-item .body p,.analysis p,.advice .a p{color:#444!important}
+  .card-item .thumb{border-color:#999!important}
+  .card-item .body .kws{color:#8a6d2f!important}
+  .advice .a .at{color:#8a7440!important}
 }
 </style>
 </head>
@@ -313,7 +351,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
       <button class="tool-btn" id="btnHistory">历史记录</button>
       <button class="tool-btn" id="btnDict">牌意词典</button>
       <button class="tool-btn" id="btnApi">AI 设置</button>
-      <button class="tool-btn" id="btnMember">VIP 会员</button>
+      <button class="tool-btn" id="btnMember">VIP 会员<span class="vip-badge hidden" id="memberBadge">VIP</span></button>
       <button class="tool-btn" id="btnPromo">推广活动</button>
       <button class="tool-btn" id="btnAccount">我的</button>
     </div>
@@ -348,6 +386,12 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
     </div>
 
     <div class="btn-row"><button class="btn primary" id="btnStart">✦ 开始占卜 ✦</button></div>
+
+    <div class="vip-cta">
+      <h3>✦ 开通灵感会员</h3>
+      <p>官方 AI 深度解读 · 专属分享报告。微信 / 支付宝均可支付，支付成功即时到账，无需等待人工发码。</p>
+      <button class="btn primary" id="btnVipCta" style="padding:10px 34px;font-size:13px">了解会员权益</button>
+    </div>
   </section>
 
   <!-- Stage 1: question & spread -->
@@ -942,7 +986,7 @@ $("btnReportRedo").onclick = $("btnRedo").onclick = resetAll;
 $("btnPrint").onclick = () => window.print();
 $("btnCopyShare").onclick = copyShareLink;
 $("btnShareCard").onclick = downloadShareCard;
-$("btnAiReport").onclick = generateAiReport;
+$("btnAiReport").onclick = generateAiReportV2;
 
 function renderReport(){
   const sp = SPREADS[state.spread];
@@ -1139,23 +1183,6 @@ function apiPrompt(){
   const cards=state.drawn.map((card,index)=>`${spread.slots[index].label}：${card[0]}（${card.reversed?"逆位":"正位"}），关键词：${card[4].join("、")}，释义：${card.reversed?card[6]:card[5]}`).join("\n");
   return `你是一位温和、专业、不过度确定的中文塔罗解读师。请基于以下牌阵给出深度解读。不要声称预测绝对未来，不提供医疗、法律、投资或危机建议。结构包含：整体主题、各牌关联、潜在盲点、可执行建议（3条）、给提问者的一句总结。\n\n提问：${state.question||"整体运势指引"}\n牌阵：${spread.name}\n${cards}`;
 }
-async function generateAiReport(){
-  if(!state.drawn.length) return;
-  const config=readApiConfig(), key=sessionStorage.getItem(API_KEY_SESSION);
-  if(!config.endpoint || !config.model || !key){ openModal("api"); showToast("请先完成 AI 接口设置"); return; }
-  const root=$("report");
-  let panel=$("aiAnalysis");
-  if(!panel){ panel=document.createElement("section"); panel.id="aiAnalysis"; panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading">AI 正在整理这副牌阵的关联与行动建议...</div>'; root.appendChild(panel); }
-  const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
-  try{
-    const response=await fetch(config.endpoint.replace(/\/$/,"")+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},body:JSON.stringify({model:config.model,messages:[{role:"system",content:"你以中文提供关怀、清晰且负责任的塔罗解读。"},{role:"user",content:apiPrompt()}],temperature:.75})});
-    if(!response.ok) throw new Error(`接口返回 ${response.status}`);
-    const data=await response.json(), text=data?.choices?.[0]?.message?.content;
-    if(!text) throw new Error("接口未返回解读内容");
-    output.className="api-analysis"; output.textContent=text;
-  }catch(error){ output.className="api-analysis"; output.textContent=`AI 解读暂时无法生成：${error.message}。请检查接口地址、模型名称、密钥和 CORS 设置。`; }
-}
-
 function openModal(kind){
   const content = $("toolContent");
   if(kind === "daily"){
@@ -1207,12 +1234,17 @@ async function requestModel(config, key){
 }
 async function generateAiReportV2(){
   if(!state.drawn.length) return;
+  if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
+    const member=readLocalMember();
+    if(!member){ openMemberBilling(); showToast("AI 深度解读是会员功能，开通后即可使用"); return; }
+    if(member.credits<1){ openMemberBilling(); showToast("解读额度已用完，可在会员页续费"); return; }
+  }
   const config=readApiConfig(), provider=config.provider||"openai", key=sessionStorage.getItem(API_KEY_SESSION)||"";
   if(!config.endpoint || !config.model || (provider!=="ollama"&&!key)){ openApiSettings(); showToast("请先完成 AI 接口设置"); return; }
   const root=$("report"); let panel=$("aiAnalysis");
   if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
   const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
-  try{output.textContent=await requestModel(config,key);output.className="api-analysis";}catch(error){output.className="api-analysis";output.textContent=`AI 解读暂时无法生成：${error.message}。请检查接口地址、模型名称、密钥和 CORS 设置。`;}
+  try{output.textContent=await requestModel(config,key);output.className="api-analysis";if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){consumeCredit();showToast(`已消耗 1 次解读额度，剩余 ${readLocalMember()?.credits||0} 次`);}}catch(error){output.className="api-analysis";output.textContent=`AI 解读暂时无法生成：${error.message}。请检查接口地址、模型名称、密钥和 CORS 设置。`;}
 }
 function openApiSettings(){
   const content=$("toolContent"), config={provider:"openai",...readApiConfig()};
@@ -1232,23 +1264,72 @@ const MEMBER_PLANS = [
 const REFERRAL_KEY = "lunar-tarot-referral-code-v1";
 const getReferralCode = () => { let code=localStorage.getItem(REFERRAL_KEY); if(!code){code=Math.random().toString(36).slice(2,8).toUpperCase();localStorage.setItem(REFERRAL_KEY,code);} return code; };
 const getReferrer = () => new URLSearchParams(location.search).get("ref") || "";
-function openMember(){
-  const content=$("toolContent"), referral=getReferralCode(), referralLink=`${location.href.split("?")[0]}?ref=${referral}`;
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">灵感会员</h2><p class="modal-sub">基础抽牌、每日一签和牌意词典始终免费。会员解锁官方 AI 深度解读与更多记录权益。</p><section class="member-hero"><h3>${getReferrer()?"好友优惠已就绪":"低价开启深度解读"}</h3><p>${getReferrer()?"来自好友的邀请已识别，首单自动优惠 ¥0.50。":"用一次轻量付费，支持持续维护与模型调用成本。"}</p></section><div class="plan-grid" id="planGrid">${MEMBER_PLANS.map((plan,index)=>`<button class="plan ${index===0?"selected":""}" data-plan="${plan.id}"><h4>${plan.name}</h4><div class="price">¥${plan.price}</div><p>${plan.detail}</p></button>`).join("")}</div><div class="checkout-options" id="payOptions"><button class="pay-option selected" data-pay="wechat">微信支付</button><button class="pay-option" data-pay="alipay">支付宝</button></div><div class="btn-row"><button class="btn primary" id="btnCheckout">开通所选方案</button></div><section class="referral-box"><h3>邀请奖励</h3><p>好友通过你的链接完成首单：好友立减 ¥0.50，你获得 1 次官方 AI 深度解读额度。奖励以支付成功回调为准。</p><div class="referral-link"><input id="referralLink" readonly value="${referralLink}"><button class="btn ghost" id="btnCopyReferral">复制</button></div></section>`;
-  let selectedPlan="single", selectedPay="wechat";
-  content.querySelectorAll("[data-plan]").forEach(button=>button.onclick=()=>{selectedPlan=button.dataset.plan;content.querySelectorAll("[data-plan]").forEach(item=>item.classList.toggle("selected",item===button));});
-  content.querySelectorAll("[data-pay]").forEach(button=>button.onclick=()=>{selectedPay=button.dataset.pay;content.querySelectorAll("[data-pay]").forEach(item=>item.classList.toggle("selected",item===button));});
-  $("btnCopyReferral").onclick=()=>copyText(referralLink).then(()=>showToast("推广链接已复制"));
-  $("btnCheckout").onclick=()=>createPaymentOrder({planId:selectedPlan,paymentMethod:selectedPay,referrer:getReferrer()});
-  $("toolModal").classList.remove("hidden");
+/* ===== 会员收款配置（Supabase 免费档 + 可选自动化支付）=====
+   搭建步骤见 SETUP.md：注册 supabase.com → 新建项目 → SQL Editor 运行 supabase/schema.sql
+   → 把项目 URL 与 anon public key 填到下面 → 把你的微信/支付宝收款码截图
+   命名为 qr-wechat.png / qr-alipay.png 放进本目录。
+   自动化支付：另把 api/ 目录部署到 Vercel（见 api/README.md），把域名填到 payApi，
+   买家付款后自动确认到账、自动发码、自动返利；payApi 留空则退回个人码人工确认流程。 */
+const TAROT_SUPABASE = {
+  url: "",            // 例: https://xxxx.supabase.co
+  anonKey: "",        // Settings → API → anon public key
+  payApi: "",         // 例: https://tarot-pay.vercel.app —— 自动化支付后端（易支付+自动发码）；留空=个人码人工确认
+  qrWechat: "qr-wechat.png",
+  qrAlipay: "qr-alipay.png",
+  contact: "",        // 你的微信号，买家付完款后联系你确认
+  rebateRate: 0.30,   // 现金返利比例（展示兜底；实际以数据库 settings 表为准）
+  discount: 0.50      // 好友首单立减金额（展示兜底；实际以数据库 settings 表为准）
+};
+const AI_REPORT_NEEDS_MEMBER = true; // true=AI 深度解读需会员额度；false=恢复免费
+const sbConfigured = () => !!(TAROT_SUPABASE.url && TAROT_SUPABASE.anonKey);
+const payApiBase = () => (TAROT_SUPABASE.payApi || "").replace(/\/+$/, "");
+const autoPayEnabled = () => sbConfigured() && !!payApiBase();
+async function sbRpc(fn, body={}){
+  const res = await fetch(`${TAROT_SUPABASE.url.replace(/\/+$/,"")}/rest/v1/rpc/${fn}`, {
+    method:"POST", headers:{apikey:TAROT_SUPABASE.anonKey, Authorization:`Bearer ${TAROT_SUPABASE.anonKey}`, "Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){ let msg="服务暂时不可用"; try{ const j=await res.json(); msg=j.message||j.msg||msg; }catch(e){} throw new Error(msg); }
+  return res.json();
 }
-async function createPaymentOrder(order){
-  /* Payments must be created and signed by a server; never expose merchant keys in this static site. */
-  const apiBase=window.TAROT_PAYMENT_API_BASE || "";
-  if(!apiBase){showToast("支付服务正在配置，会员内测即将开放");return;}
-  try{const response=await fetch(`${apiBase.replace(/\/$/,"")}/orders`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(order)});if(!response.ok)throw new Error("创建订单失败");const result=await response.json();if(result.paymentUrl)location.href=result.paymentUrl;else throw new Error("支付链接不可用");}catch(error){showToast(error.message||"暂时无法创建订单");}
+const DEVICE_KEY = "lunar-tarot-device-v1";
+const getDeviceId = () => { let d=localStorage.getItem(DEVICE_KEY); if(!d){ try{ d=Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b=>b.toString(16).padStart(2,"0")).join(""); }catch(e){ d=Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10); } localStorage.setItem(DEVICE_KEY,d); } return d; };
+const REFERRED_BY_KEY = "lunar-tarot-referred-by-v1";
+const persistReferrer = () => { const ref=getReferrer(); if(ref && /^[A-Za-z0-9]{4,8}$/.test(ref)) localStorage.setItem(REFERRED_BY_KEY, ref.toUpperCase()); };
+const getStoredReferrer = () => { persistReferrer(); return (localStorage.getItem(REFERRED_BY_KEY)||"").toUpperCase(); };
+/* 会员权益：激活码由服务端校验，权益缓存到本机浏览器 */
+const grantEntitlement = (plan, credits, expiresMs) => {
+  const cur = readLocalMember();
+  const member = { plan, credits: credits + (cur?cur.credits:0), expires: Math.max(cur?cur.expires:0, expiresMs), verified:true };
+  localStorage.setItem(LOCAL_MEMBER_KEY, JSON.stringify(member));
+  updateMemberBadge();
+  return member;
+};
+const consumeCredit = () => {
+  const member = readLocalMember();
+  if(!member || member.credits < 1) return false;
+  member.credits -= 1; localStorage.setItem(LOCAL_MEMBER_KEY, JSON.stringify(member));
+  updateMemberBadge();
+  return true;
+};
+function updateMemberBadge(){
+  const member = readLocalMember();
+  const badge = $("memberBadge");
+  if(badge) badge.classList.toggle("hidden", !member);
+  const cta = $("btnVipCta");
+  if(cta) cta.textContent = member ? "查看我的会员权益" : "了解会员权益";
 }
-
+async function syncServerEntitlements(){
+  if(!sbConfigured()) return;
+  try{
+    const list = await sbRpc("my_entitlement", { p_device: getDeviceId() });
+    if(Array.isArray(list) && list.length){
+      let credits=0, expires=0, plan="";
+      list.forEach(e => { credits += e.credits||0; const t=new Date(e.expires_at).getTime(); if(t>expires) expires=t; plan = e.plan||plan; });
+      if(credits > 0 && expires > Date.now()) grantEntitlement(plan, credits, expires);
+    }
+  }catch(e){ /* 同步失败不打扰用户 */ }
+}
 const LOCAL_ACCOUNT_KEY = "lunar-tarot-local-account-v1";
 const LOCAL_MEMBER_KEY = "lunar-tarot-local-member-v1";
 const LOCAL_ORDER_KEY = "lunar-tarot-local-order-v1";
@@ -1259,11 +1340,21 @@ function openAccount(){
   const content=$("toolContent"), account=readLocalAccount(), member=readLocalMember();
   if(account){
     const initials=(account.name||"星").slice(0,1);
-    content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(account.name)}</h3><p>${escapeHtml(account.email||"本地体验账户")}</p></div></section><div class="benefit-grid"><div class="benefit"><strong>${member?.credits||0}</strong><span>AI 解读额度</span></div><div class="benefit"><strong>${member?.plan||"免费"}</strong><span>当前权益</span></div><div class="benefit"><strong>${member?.expires?new Date(member.expires).toLocaleDateString("zh-CN"):"--"}</strong><span>权益有效期</span></div></div><div class="btn-row"><button class="btn ghost" id="btnLogout">退出本地账户</button></div>`;
-    $("btnLogout").onclick=()=>{localStorage.removeItem(LOCAL_ACCOUNT_KEY);localStorage.removeItem(LOCAL_MEMBER_KEY);showToast("已退出本地账户");openAccount();};
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(account.name)}</h3><p>${escapeHtml(account.email||"本地体验账户")}</p></div></section><div class="benefit-grid"><div class="benefit"><strong>${member?.credits||0}</strong><span>AI 解读额度</span></div><div class="benefit"><strong>${member?.plan||"免费"}</strong><span>当前权益</span></div><div class="benefit"><strong>${member?.expires?new Date(member.expires).toLocaleDateString("zh-CN"):"--"}</strong><span>权益有效期</span></div></div><div class="sec-title">✦ 我的订单</div><div class="order-list" id="orderList">加载中…</div><div class="btn-row"><button class="btn ghost" id="btnLogout">退出本地账户</button></div>`;
+    $("btnLogout").onclick=()=>{localStorage.removeItem(LOCAL_ACCOUNT_KEY);localStorage.removeItem(LOCAL_MEMBER_KEY);showToast("已退出本地账户");updateMemberBadge();openAccount();};
+    const list=$("orderList");
+    if(sbConfigured()){
+      sbRpc("my_orders",{p_device:getDeviceId()}).then(orders=>{
+        if(!Array.isArray(orders)||!orders.length){ list.innerHTML=`<p class="modal-sub">还没有订单。开通会员后，订单与权益会同步到这里。</p>`; return; }
+        const statusText={pending:"待确认到账",paid:"已支付",cancelled:"已取消"};
+        list.innerHTML=orders.map(o=>`<div class="order-item"><div><b>${escapeHtml(o.plan_name)}</b> · ¥${Number(o.price).toFixed(2)}<div class="od">${escapeHtml(o.order_no)} · ${String(o.created_at||"").slice(0,16).replace("T"," ")}</div></div><span class="st-${o.status}">${statusText[o.status]||o.status}</span></div>`).join("");
+      }).catch(()=>{ list.innerHTML=`<p class="modal-sub">订单加载失败，请稍后重试。</p>`; });
+    }else{
+      list.innerHTML=`<p class="modal-sub">配置 Supabase 后，订单与会员权益将在此同步。</p>`;
+    }
   }else{
     content.innerHTML=`<h2 class="modal-title" id="toolTitle">登录星夜塔罗</h2><p class="modal-sub">本地体验版账户仅保存在当前浏览器，用于测试会员与推广流程。</p><form class="api-form" id="loginForm"><label>昵称<input id="loginName" maxlength="16" required placeholder="给自己起一个名字"></label><label>邮箱（选填）<input id="loginEmail" type="email" placeholder="name@example.com"></label><div class="btn-row"><button class="btn primary" type="submit">进入星夜塔罗</button></div></form>`;
-    $("loginForm").onsubmit=event=>{event.preventDefault();const account={name:$("loginName").value.trim(),email:$("loginEmail").value.trim(),createdAt:Date.now()};localStorage.setItem(LOCAL_ACCOUNT_KEY,JSON.stringify(account));showToast("登录成功");openAccount();};
+    $("loginForm").onsubmit=event=>{event.preventDefault();const account={name:$("loginName").value.trim(),email:$("loginEmail").value.trim(),createdAt:Date.now()};localStorage.setItem(LOCAL_ACCOUNT_KEY,JSON.stringify(account));showToast("登录成功");updateMemberBadge();openAccount();};
   }
   $("toolModal").classList.remove("hidden");
 }
@@ -1275,7 +1366,7 @@ function openMemberExperience(){
   let planId="single";
   content.querySelectorAll("[data-local-plan]").forEach(button=>button.onclick=()=>{planId=button.dataset.localPlan;content.querySelectorAll("[data-local-plan]").forEach(item=>item.classList.toggle("selected",item===button));});
   content.querySelectorAll("[data-local-pay]").forEach(button=>button.onclick=()=>content.querySelectorAll("[data-local-pay]").forEach(item=>item.classList.toggle("selected",item===button)));
-  $("btnLocalActivate").onclick=()=>{const plan=MEMBER_PLANS.find(item=>item.id===planId), days=planId==="single"?7:30, credits=planId==="single"?1:planId==="light"?10:30;localStorage.setItem(LOCAL_MEMBER_KEY,JSON.stringify({plan:plan.name,credits,expires:Date.now()+days*86400000}));showToast("本地会员权益已开通");openMemberExperience();};
+  $("btnLocalActivate").onclick=()=>{const plan=MEMBER_PLANS.find(item=>item.id===planId), days=planId==="single"?7:30, credits=planId==="single"?1:planId==="light"?10:30;localStorage.setItem(LOCAL_MEMBER_KEY,JSON.stringify({plan:plan.name,credits,expires:Date.now()+days*86400000}));showToast("本地会员权益已开通");updateMemberBadge();openMemberExperience();};
   $("toolModal").classList.remove("hidden");
 }
 function openPromotion(){
@@ -1283,26 +1374,154 @@ function openPromotion(){
   const content=$("toolContent"), link=`${location.href.split("?")[0]}?ref=${getReferralCode()}`, referrer=getReferrer();
   content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">本地活动预览。上线后，奖励将以后端支付回调与风控结果为准。</p><section class="promo-banner"><h3>${referrer?"你已获得好友邀请":"邀请好友，分享一束星光"}</h3><p>${referrer?"首单可减 ¥0.50；完成后邀请人会获得 1 次 AI 解读额度。":"每位好友完成首单后，好友立减 ¥0.50，你将获得 1 次官方 AI 解读额度。"}</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友完成首单</div><div class="promo-step"><b>03</b>奖励自动到账</div></div></section><div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></div><div class="btn-row"><button class="btn ghost" id="btnTestReward">测试奖励到账</button></div>`;
   $("btnCopyPromo").onclick=()=>copyText(link).then(()=>showToast("推广链接已复制"));
-  $("btnTestReward").onclick=()=>{const member=readLocalMember()||{plan:"推广体验",credits:0,expires:Date.now()+30*86400000};member.credits+=1;localStorage.setItem(LOCAL_MEMBER_KEY,JSON.stringify(member));showToast("本地测试奖励：+1 解读额度");};
+  $("btnTestReward").onclick=()=>{const member=readLocalMember()||{plan:"推广体验",credits:0,expires:Date.now()+30*86400000};member.credits+=1;localStorage.setItem(LOCAL_MEMBER_KEY,JSON.stringify(member));showToast("本地测试奖励：+1 解读额度");updateMemberBadge();};
   $("toolModal").classList.remove("hidden");
 }
 
+/* ══════════ 会员开通：自动化支付 + 个人码人工确认 ══════════ */
 function openMemberBilling(){
-  if(!requireLocalAccount()) return;
+  if(sbConfigured()){ openMemberCheckout(); return; }
+  openMemberExperience();
+}
+let payPollTimer=null;
+async function startAutoPay(s){
+  const btn=$("btnNext"); if(btn){ btn.disabled=true; btn.textContent="正在跳转收银台…"; }
+  const plan=MEMBER_PLANS.find(p=>p.id===s.planId)||MEMBER_PLANS[0];
+  try{
+    const res=await fetch(`${payApiBase()}/api/epay/create`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({planId:s.planId,method:s.method,referrer:s.ref||"",deviceId:getDeviceId()})});
+    let data=null; try{ data=await res.json(); }catch(e){ /* 非 JSON */ }
+    if(!res.ok||!data||!data.payUrl) throw new Error(data?.error||"创建订单失败");
+    localStorage.setItem(LOCAL_ORDER_KEY,JSON.stringify({orderNo:data.orderNo,planName:plan.name,planId:s.planId,method:s.method,status:"pending",createdAt:Date.now()}));
+    location.href=data.payUrl;   // 跳转易支付收银台，付款后自动跳回
+  }catch(e){ renderMemberCheckout({...s,err:e.message}); }
+}
+function waitOrderPaid(orderNo, planId, method){
+  if(payPollTimer) clearInterval(payPollTimer);
+  let tries=0;
+  const tick=async()=>{
+    tries++;
+    try{
+      const res=await fetch(`${payApiBase()}/api/order?no=${encodeURIComponent(orderNo)}`);
+      const data=await res.json();
+      if(res.ok && data.status==="paid"){
+        clearInterval(payPollTimer); payPollTimer=null;
+        localStorage.removeItem(LOCAL_ORDER_KEY);
+        await syncServerEntitlements();
+        updateMemberBadge();
+        renderMemberCheckout({step:"ok",planId,method,orderNo});
+        showToast("支付成功，会员权益已到账 ✦");
+        return;
+      }
+      if(res.ok && data.status==="cancelled"){
+        clearInterval(payPollTimer); payPollTimer=null;
+        localStorage.removeItem(LOCAL_ORDER_KEY);
+        renderMemberCheckout({step:"plan",planId,method,err:"订单已取消，请重新下单"});
+        return;
+      }
+    }catch(e){ /* 网络抖动继续轮询 */ }
+    if(tries>=45){ clearInterval(payPollTimer); payPollTimer=null; renderMemberCheckout({step:"plan",planId,method,err:"支付结果确认超时，请稍后到「我的-订单」查看"}); }
+  };
+  tick();
+  payPollTimer=setInterval(tick,2000);
+}
+function renderMemberCheckout(state){
   const content=$("toolContent"), member=readLocalMember(), pending=readLocalOrder();
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">灵感会员</h2><p class="modal-sub">免费占卜、每日一签与词典始终可用。会员权益仅会在微信或支付宝支付成功并通过服务端验证后生效。</p><section class="member-hero"><h3>${member?`当前：${member.plan}`:"选择会员方案"}</h3><p>${member?`剩余 ${member.credits} 次 AI 解读额度，有效至 ${new Date(member.expires).toLocaleDateString("zh-CN")}。`:pending?`你有一笔待支付订单：${pending.planName}，尚未开通会员权益。`:"未支付不会开通 VIP 或发放解读额度。"}</p></section><div class="plan-grid">${MEMBER_PLANS.map((plan,index)=>`<button class="plan ${index===0?"selected":""}" data-billing-plan="${plan.id}"><h4>${plan.name}</h4><div class="price">¥${plan.price}</div><p>${plan.detail}</p></button>`).join("")}</div><div class="checkout-options"><button class="pay-option selected" data-billing-pay="wechat">微信支付</button><button class="pay-option" data-billing-pay="alipay">支付宝</button></div><div class="btn-row"><button class="btn primary" id="btnCreateOrder">创建待支付订单</button></div>`;
-  let planId="single", paymentMethod="wechat";
-  content.querySelectorAll("[data-billing-plan]").forEach(button=>button.onclick=()=>{planId=button.dataset.billingPlan;content.querySelectorAll("[data-billing-plan]").forEach(item=>item.classList.toggle("selected",item===button));});
-  content.querySelectorAll("[data-billing-pay]").forEach(button=>button.onclick=()=>{paymentMethod=button.dataset.billingPay;content.querySelectorAll("[data-billing-pay]").forEach(item=>item.classList.toggle("selected",item===button));});
-  $("btnCreateOrder").onclick=()=>{const plan=MEMBER_PLANS.find(item=>item.id===planId);localStorage.setItem(LOCAL_ORDER_KEY,JSON.stringify({id:`LOCAL-${Date.now()}`,planId,planName:plan.name,paymentMethod,status:"pending",createdAt:Date.now()}));showToast("待支付订单已创建，未支付不会开通会员");openMemberBilling();};
+  const AUTO=autoPayEnabled();
+  const s=state||{step:"plan",planId:"single",method:"wechat",ref:"",quote:null,orderNo:null,err:""};
+  const plan=MEMBER_PLANS.find(p=>p.id===s.planId)||MEMBER_PLANS[0];
+  const storedRef=s.ref||getStoredReferrer();
+  const payHint=AUTO?"微信 / 支付宝支付成功后自动到账，无需等待人工发码。":"付款直接转给店主微信/支付宝，确认到账后发放激活码。";
+  let html=`<h2 class="modal-title" id="toolTitle">灵感会员</h2><p class="modal-sub">免费占卜、每日一签与牌意词典始终可用。会员解锁官方 AI 深度解读。${payHint}</p>`;
+  if(member) html+=`<section class="member-hero"><h3>当前：${member.plan}</h3><p>剩余 <b style="color:var(--gold)">${member.credits}</b> 次 AI 解读额度，有效至 ${new Date(member.expires).toLocaleDateString("zh-CN")}。<button class="btn ghost" id="btnSync" style="margin-left:8px;padding:6px 12px;font-size:11px">刷新权益</button></p></section>`;
+  else if(pending && !s.orderNo) html+=`<section class="member-hero"><h3>待确认订单</h3><p>订单 ${pending.orderNo||""}（${pending.planName}）${AUTO?"已生成，可返回收银台继续付款":"等待店主确认到账，确认后店主会发你激活码"}。</p>${AUTO?`<div class="btn-row" style="margin-top:10px;justify-content:flex-start"><button class="btn ghost" id="btnResumePay">查看支付状态</button></div>`:""}</section>`;
+  html+=`<section class="referral-box"><h3>已有激活码？</h3><div class="code-row"><input class="member-input" id="activateInput" maxlength="16" placeholder="输入店主发给你的激活码"><button class="btn primary" id="btnActivate">激活</button></div></section>`;
+  if(s.step==="waiting"&&AUTO){
+    html+=`<section class="pay-wait"><div class="spinner"></div>正在确认支付结果…<br>如已完成付款但迟迟未到账，请稍候片刻，页面会自动刷新状态。</section>`;
+  }else if(s.step==="ok"&&AUTO){
+    const m=readLocalMember();
+    html+=`<section class="order-info"><b>✦ 支付成功，会员权益已到账</b><br>方案：${plan.name}<br>AI 解读额度：<b style="color:var(--gold)">${m?m.credits:0}</b> 次<br>有效期至：${m&&m.expires?new Date(m.expires).toLocaleDateString("zh-CN"):"--"}${s.orderNo?`<br>订单号：${s.orderNo}`:""}</section>`;
+    html+=`<div class="btn-row"><button class="btn primary" id="btnStartUse">开始占卜</button><button class="btn ghost" id="btnAgain">再开通一份</button></div>`;
+  }else if(s.step==="pay"&&s.quote){
+    html+=`<section class="qr-box"><h3 style="color:var(--gold-hi);font:16px var(--serif);letter-spacing:.1em">请扫码支付</h3>
+      <img id="qrImg" src="${s.method==="alipay"?TAROT_SUPABASE.qrAlipay:TAROT_SUPABASE.qrWechat}" alt="收款码">
+      <p class="qr-note">收款方：星夜塔罗店主<br>应付金额：<b style="color:var(--gold)">¥${Number(s.quote.price).toFixed(2)}</b>（${plan.name}）${s.quote.discount>0?`<br>含好友首单立减 ¥${Number(s.quote.discount).toFixed(2)}`:""}<br>请用<b>${s.method==="alipay"?"支付宝":"微信"}</b>扫码支付，付款后点击下方按钮</p>
+      <div class="btn-row"><button class="btn primary" id="btnPaid">我已完成付款</button><button class="btn ghost" id="btnBackPlan">返回改选</button></div></section>`;
+  }else if(s.step==="done"){
+    html+=`<section class="order-info"><b>订单已提交</b><br>订单号：${s.orderNo||"--"}<br>方案：${plan.name}　金额：¥${s.quote?Number(s.quote.price).toFixed(2):""}${TAROT_SUPABASE.contact?`<br>若已付款，加店主微信「${TAROT_SUPABASE.contact}」发送订单号，确认后店主会发你激活码。`:"<br>若已付款，联系店主发送订单号，确认后你会收到激活码。"}</section>`;
+    html+=`<div class="btn-row"><button class="btn ghost" id="btnAgain">再开通一份</button></div>`;
+  }else{
+    html+=`<div class="plan-grid">${MEMBER_PLANS.map((p,i)=>`<button class="plan ${(i===0&&!s.planId)||p.id===s.planId?"selected":""}" data-plan="${p.id}"><h4>${p.name}</h4><div class="price">¥${p.price}</div><p>${p.detail}</p></button>`).join("")}</div>`;
+    html+=`<section class="referral-box"><h3>推荐码（选填）</h3><p>好友推荐首单立减 ¥${Number(TAROT_SUPABASE.discount).toFixed(2)}。</p><input class="member-input" id="refInput" maxlength="8" placeholder="粘贴好友的推荐码" value="${storedRef}"></section>`;
+    html+=`<div class="checkout-options"><button class="pay-option ${s.method==="wechat"?"selected":""}" data-pay="wechat">微信支付</button><button class="pay-option ${s.method==="alipay"?"selected":""}" data-pay="alipay">支付宝</button></div>`;
+    html+=`<div class="btn-row"><button class="btn primary" id="btnNext">${AUTO?"去支付":"下一步：扫码支付"}</button></div>`;
+  }
+  if(s.err) html+=`<p style="color:#e08a8a;font-size:12px;margin-top:12px">${s.err}</p>`;
+  content.innerHTML=html;
+  const q=sel=>content.querySelector(sel);
+  const act=q("#btnActivate");
+  if(act) act.onclick=async()=>{const code=q("#activateInput").value.trim(); if(!code){showToast("请输入激活码");return;} try{const r=await sbRpc("activate_code",{p_code:code,p_device:getDeviceId()}); grantEntitlement(r.plan,r.credits,new Date(r.expires_at).getTime()); showToast("会员已开通 ✦"); updateMemberBadge(); renderMemberCheckout({step:"plan",planId:s.planId,method:s.method});}catch(e){showToast(e.message);} };
+  const sync=q("#btnSync");
+  if(sync) sync.onclick=async()=>{sync.disabled=true; sync.textContent="刷新中…"; await syncServerEntitlements(); showToast("权益已同步"); renderMemberCheckout({step:"plan",planId:s.planId,method:s.method}); };
+  const resume=q("#btnResumePay");
+  if(resume) resume.onclick=()=>{renderMemberCheckout({step:"waiting",planId:pending?.planId||"single",method:pending?.method||"wechat",orderNo:pending?.orderNo});};
+  if(s.step==="waiting"&&AUTO&&s.orderNo){
+    waitOrderPaid(s.orderNo, s.planId||"single", s.method||"wechat");
+  }else if(s.step==="ok"&&AUTO){
+    const use=q("#btnStartUse");
+    if(use) use.onclick=()=>{closeModal(); goStage(0);};
+    const again=q("#btnAgain");
+    if(again) again.onclick=()=>renderMemberCheckout({step:"plan",planId:s.planId,method:s.method});
+  }else if(s.step==="pay"){
+    q("#btnPaid").onclick=async()=>{try{const r=await sbRpc("create_order",{p_plan:s.planId,p_method:s.method,p_referrer:s.ref||"",p_device:getDeviceId()}); localStorage.setItem(LOCAL_ORDER_KEY,JSON.stringify({orderNo:r.order_no,planName:plan.name,status:"pending",createdAt:Date.now()})); renderMemberCheckout({step:"done",planId:s.planId,method:s.method,quote:s.quote,orderNo:r.order_no}); showToast("订单已提交");}catch(e){renderMemberCheckout({...s,err:e.message});} };
+    q("#btnBackPlan").onclick=()=>renderMemberCheckout({step:"plan",planId:s.planId,method:s.method,ref:s.ref});
+  }else if(s.step==="done"){
+    q("#btnAgain").onclick=()=>renderMemberCheckout({step:"plan",planId:s.planId,method:s.method,ref:s.ref});
+  }else{
+    q("#btnNext").onclick=async()=>{
+      const ref=(q("#refInput")?.value||"").trim().toUpperCase();
+      if(ref&&!/^[A-Z0-9]{4,8}$/.test(ref)){renderMemberCheckout({...s,err:"推荐码格式不对（4-8位字母数字）"});return;}
+      const meth=q(".pay-option.selected")?.dataset.pay||s.method;
+      const next={...s,ref:ref||getStoredReferrer(),method:meth};
+      if(AUTO){ await startAutoPay(next); }
+      else{ try{const quote=await sbRpc("quote_order",{p_plan:s.planId,p_referrer:ref||"",p_device:getDeviceId()}); renderMemberCheckout({step:"pay",planId:s.planId,method:meth,ref:ref||getStoredReferrer(),quote});}catch(e){renderMemberCheckout({...s,err:e.message});} }
+    };
+    content.querySelectorAll("[data-plan]").forEach(b=>b.onclick=()=>{content.querySelectorAll("[data-plan]").forEach(x=>x.classList.toggle("selected",x===b)); s.planId=b.dataset.plan;});
+    content.querySelectorAll("[data-pay]").forEach(b=>b.onclick=()=>{content.querySelectorAll("[data-pay]").forEach(x=>x.classList.toggle("selected",x===b)); s.method=b.dataset.pay;});
+  }
   $("toolModal").classList.remove("hidden");
 }
+function openMemberCheckout(init){ syncServerEntitlements().then(()=>renderMemberCheckout(init)); }
 function openPromotionSecure(){
   if(!requireLocalAccount()) return;
+  if(sbConfigured()){ openPromotionReal(); return; }
   const content=$("toolContent"), link=`${location.href.split("?")[0]}?ref=${getReferralCode()}`, referrer=getReferrer();
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">奖励仅在好友首单支付成功并通过服务端风控后发放，浏览器本地无法直接领取。</p><section class="promo-banner"><h3>${referrer?"好友优惠已识别":"邀请好友，分享一束星光"}</h3><p>${referrer?"首单将减 ¥0.50；支付成功后，邀请人获得 1 次 AI 解读额度。":"好友使用专属链接完成首单后，好友立减 ¥0.50，你获得 1 次官方 AI 解读额度。"}</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友完成首单</div><div class="promo-step"><b>03</b>支付回调验证后发放</div></div></section><div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></div>`;
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">本地活动预览。配置收款后自动切换为真实返利。</p><section class="promo-banner"><h3>${referrer?"你已获得好友邀请":"邀请好友，分享一束星光"}</h3><p>${referrer?"首单可减 ¥0.50；完成后邀请人会获得 1 次 AI 解读额度。":"每位好友完成首单后，好友立减 ¥0.50，你将获得 1 次官方 AI 解读额度。"}</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友完成首单</div><div class="promo-step"><b>03</b>奖励自动到账</div></div></section><div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></div>`;
   $("btnCopyPromo").onclick=()=>copyText(link).then(()=>showToast("推广链接已复制"));
   $("toolModal").classList.remove("hidden");
+}
+async function openPromotionReal(){
+  const content=$("toolContent"), code=getReferralCode(), link=`${location.href.split("?")[0]}?ref=${code}`;
+  let rate=TAROT_SUPABASE.rebateRate, discount=TAROT_SUPABASE.discount;
+  if(sbConfigured()){
+    try{ const pub=await sbRpc("pub_settings",{}); if(pub&&pub.rebate_rate!=null){ rate=Number(pub.rebate_rate); discount=Number(pub.discount); } }catch(e){ /* 用兜底值 */ }
+  }
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">好友通过你的链接完成首单：好友立减 ¥${Number(discount).toFixed(2)}，你获得返利——现金 ${Math.round(rate*100)}% 或 1 次解读额度，自选。</p>
+  <section class="promo-banner"><h3>邀请好友，分享一束星光</h3><p>现金返利由店主人工确认后转账；解读额度可随时兑换成 AI 解读次数。</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友完成首单</div><div class="promo-step"><b>03</b>返利到账</div></div></section>
+  <div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div><p id="promoStats" style="font-size:12px;color:var(--muted);margin-top:12px">加载中…</p></div>
+  <section class="referral-box"><h3>返利设置</h3><div class="field-row"><label>昵称（店主结算确认用）</label><input class="member-input" id="refNick" maxlength="20" placeholder="你的昵称"></div>
+  <div class="field-row"><label>返利方式</label><select id="refType"><option value="cash">现金返利（店主人工转账）</option><option value="credit">解读额度（自动到账）</option></select></div>
+  <div class="field-row"><label>收款账号（现金返利必填：微信号或支付宝账号）</label><input class="member-input" id="refAccount" maxlength="40" placeholder="选现金返利时必填"></div>
+  <div class="btn-row"><button class="btn primary" id="btnSaveRef">保存设置</button></div></section>`;
+  $("btnCopyPromo").onclick=()=>copyText(link).then(()=>showToast("推广链接已复制"));
+  $("btnSaveRef").onclick=async()=>{const nick=$("refNick").value.trim(), type=$("refType").value, acc=$("refAccount").value.trim(); if(type==="cash"&&!acc){showToast("现金返利请填收款账号");return;} try{await sbRpc("set_referrer",{p_code:code,p_nickname:nick,p_payout_type:type,p_payout_account:acc,p_device:getDeviceId()}); showToast("返利设置已保存");}catch(e){showToast(e.message);} };
+  $("toolModal").classList.remove("hidden");
+  try{
+    const me=(await sbRpc("my_referrer",{p_code:code}))||{};
+    const stats=$("promoStats");
+    stats.innerHTML=`累计现金返利：<b style="color:var(--gold)">¥${Number(me.total_reward||0).toFixed(2)}</b>（待店主结算）　可用解读额度：<b style="color:var(--gold)">${me.credits||0}</b> 次${(me.credits||0)>0?'　<button class="btn ghost" id="btnRedeem">兑换 1 次</button>':""}`;
+    if((me.credits||0)>0) $("btnRedeem").onclick=async()=>{try{const r=await sbRpc("redeem_credit",{p_code:code}); if(r&&r.ok){grantEntitlement("推广额度",1,Date.now()+30*86400000); showToast("已兑换 1 次解读额度"); openPromotionReal();}else{showToast("暂时没有可兑换的额度");}}catch(e){showToast(e.message);} };
+    $("refNick").value=me.nickname||""; $("refType").value=me.payout_type||"cash"; $("refAccount").value=me.payout_account||"";
+  }catch(e){ /* 首次使用无记录，保持默认 */ }
 }
 
 function goHome(){
@@ -1313,10 +1532,23 @@ function goHome(){
   closeModal();
   goStage(0);
 }
-$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
+$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnVipCta").onclick=openMemberBilling; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
 
 /* init */
 buildDeck();
+updateMemberBadge();
+if(autoPayEnabled()){
+  /* 易支付付款后跳回本站 ?pay=return&order=xxx：自动确认并同步权益 */
+  const payParams=new URLSearchParams(location.search);
+  const payOrder=payParams.get("order");
+  if(payParams.get("pay")==="return" && payOrder){
+    const ref=payParams.get("ref");
+    history.replaceState(null,"",location.pathname+(ref?`?ref=${encodeURIComponent(ref)}`:"")+location.hash);
+    const last=readLocalOrder()||{};
+    openMemberCheckout({step:"waiting",planId:last.planId||"single",method:last.method||"wechat",orderNo:payOrder});
+    showToast("正在确认支付结果…");
+  }
+}
 if(location.hash.startsWith("#r=")){ const shared=decodePayload(location.hash.slice(3)); if(payloadToState(shared)){ goStage(4); renderReport(); } }
 </script>
 </body>
