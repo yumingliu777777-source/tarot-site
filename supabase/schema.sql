@@ -543,7 +543,7 @@ returns json language plpgsql security definer set search_path = public as $$
 declare
   v_price numeric; v_name text; v_discount numeric := 0; v_ref text; v_paid int; v_self int;
 begin
-  select v_price, v_name from plan_price(p_plan) into v_price, v_name;
+  select f.v_price, f.v_name from plan_price(p_plan) f into v_price, v_name;
   v_ref := upper(trim(coalesce(p_referrer, '')));
   if v_ref <> '' and valid_referrer(v_ref) and length(coalesce(p_device,'')) >= 8 then
     select count(*) into v_paid from orders where device_id = p_device and status = 'paid';
@@ -568,7 +568,7 @@ declare
 begin
   if p_method not in ('wechat','alipay') then raise exception '未知支付方式'; end if;
   if length(coalesce(p_device,'')) < 8 then raise exception '设备标识无效'; end if;
-  select v_price, v_name from plan_price(p_plan) into v_price, v_name;
+  select f.v_price, f.v_name from plan_price(p_plan) f into v_price, v_name;
   v_ref := upper(trim(coalesce(p_referrer, '')));
   if v_ref <> '' and valid_referrer(v_ref) then
     select count(*) into v_recent from orders
