@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>星夜塔罗 · 在线占卜</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-2JYKBTZ3YS"></script>
+<script>
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-2JYKBTZ3YS', { anonymize_ip: true });
+</script>
 <style>
 /* ── Tokens ─────────────────────────────────────────── */
 :root{
@@ -542,6 +548,8 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 
 <script>
 "use strict";
+/* Google Analytics 4 事件埋点 */
+const track = (name, params={}) => { if(typeof window.gtag === "function") window.gtag("event", name, params); };
 /* ══════════════ Deck data ══════════════ */
 const SUIT_GLYPH = { "权杖":"✦", "圣杯":"♥", "宝剑":"✧", "星币":"●" };
 const SUIT_SVG = {
@@ -702,7 +710,7 @@ function goStage(n){
 }
 
 /* ══════════════ Stage 0→1 ══════════════ */
-$("btnStart").onclick = () => goStage(1);
+$("btnStart").onclick = () => { track("start_reading"); goStage(1); };
 
 /* ══════════════ Spread select ══════════════ */
 let selSpread = "single";
@@ -712,6 +720,7 @@ document.querySelectorAll(".spread-card").forEach(c=>{
     c.classList.add("sel");
     selSpread = c.dataset.spread;
     state.spread = selSpread;
+    track("select_spread", { spread: selSpread });
   };
 });
 $("btnBack0").onclick = () => goStage(0);
@@ -729,6 +738,7 @@ function buildDeck(){
   }
 }
 $("btnShuffle").onclick = () => {
+  track("begin_shuffle", { spread: state.spread, has_question: !!$("questionInput").value.trim() });
   $("questionInput").blur();
   state.question = $("questionInput").value.trim();
   buildDeck();
@@ -1013,7 +1023,7 @@ const ELEM_DESC = {
   "星币":"土元素厚重，现实基础与物质条件决定成败，请务实推进。"
 };
 
-$("btnReport").onclick = () => { goStage(4); renderReport(); saveReading(); };
+$("btnReport").onclick = () => { track("generate_report", { spread: state.spread, cards: state.drawn.length }); goStage(4); renderReport(); saveReading(); };
 $("btnReportRedo").onclick = $("btnRedo").onclick = resetAll;
 $("btnPrint").onclick = () => window.print();
 $("btnCopyShare").onclick = copyShareLink;
@@ -1192,11 +1202,13 @@ function copyText(value){
   const input = document.createElement("textarea"); input.value = value; document.body.appendChild(input); input.select(); document.execCommand("copy"); input.remove(); return Promise.resolve();
 }
 function copyShareLink(){
+  track("copy_share_link", { spread: state.spread });
   const link = `${location.href.split("#")[0]}#r=${encodePayload(readingPayload())}`;
   copyText(link).then(() => showToast("分享链接已复制")).catch(() => showToast("复制失败，请手动复制地址栏链接"));
 }
 function downloadShareCard(){
   if(!state.drawn.length) return;
+  track("generate_share_card", { spread: state.spread });
   const canvas = document.createElement("canvas"), ctx = canvas.getContext("2d");
   canvas.width = 1200; canvas.height = 630;
   const bg = ctx.createLinearGradient(0,0,1200,630); bg.addColorStop(0,"#090911"); bg.addColorStop(1,"#1b1630"); ctx.fillStyle=bg; ctx.fillRect(0,0,1200,630);
@@ -1520,6 +1532,7 @@ function renderAuthForm(content){
       await refreshAccount();  // 拉取完整资料（含 is_admin / 余额）
       updateMemberBadge();
       updateNewbieBanner();
+      track(mode==="login"?"login":"register", { referred: !!getStoredReferrer() });
       if(pendingAdminIntent){ pendingAdminIntent=false; openAdmin(); }
       else openAccountReal();
     }catch(err){
@@ -1564,6 +1577,7 @@ async function startAutoPay(s){
     const res=await fetch(`${payApiBase()}/api/epay/create`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({planId:s.planId,method:s.method,referrer:s.ref||"",deviceId:getDeviceId()})});
     let data=null; try{ data=await res.json(); }catch(e){ /* 非 JSON */ }
     if(!res.ok||!data||!data.payUrl) throw new Error(data?.error||"创建订单失败");
+    track("order_created", { plan: s.planId, method: s.method, referrer: !!s.ref });
     localStorage.setItem(LOCAL_ORDER_KEY,JSON.stringify({orderNo:data.orderNo,planName:plan.name,planId:s.planId,method:s.method,status:"pending",createdAt:Date.now()}));
     location.href=data.payUrl;   // 跳转易支付收银台，付款后自动跳回
   }catch(e){ renderMemberCheckout({...s,err:e.message}); }
@@ -1837,10 +1851,10 @@ function goHome(){
   closeModal();
   goStage(0);
 }
-$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnVipCta").onclick=openMemberBilling; $("btnCopyInvite").onclick=async()=>{
+$("btnDaily").onclick=()=>{track("open_daily_draw");openModal("daily");}; $("btnHistory").onclick=()=>{track("open_history");openModal("history");}; $("btnDict").onclick=()=>{track("open_dictionary");openModal("dict");}; $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnVipCta").onclick=openMemberBilling; $("btnCopyInvite").onclick=async()=>{
   if(getSession()){
     const acc=await refreshAccount();
-    if(acc&&acc.ref_code){ copyText(promoLinkFor(acc.ref_code)).then(()=>showToast("邀请链接已复制，快去分享吧 ✦")).catch(()=>showToast("复制失败，请到「推广活动」页复制")); }
+    if(acc&&acc.ref_code){ track("invite_copy", { ref_code: acc.ref_code }); copyText(promoLinkFor(acc.ref_code)).then(()=>showToast("邀请链接已复制，快去分享吧 ✦")).catch(()=>showToast("复制失败，请到「推广活动」页复制")); }
     else{ showToast("正在同步账号信息，请稍后再试"); }
   }else{
     openAccount(); showToast("注册登录后即可生成专属邀请链接");
