@@ -1692,7 +1692,7 @@ async function loadAdminTab(){
     }else if(adminTab==="users"){
       const r=await sbRpc("admin_list_accounts",{p_token:token});
       if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
-      const rows=(r.list||[]).map(u=>`<div class="admin-row"><div><b>${escapeHtml(u.nickname)}</b> <span class="muted">@${escapeHtml(u.username)}</span>${u.is_admin?' <span class="st-paid">管理员</span>':''}<div class="od">邀请码 ${escapeHtml(u.ref_code)} · 拉新 ${u.referred||0} 人 · ${String(u.created_at||"").slice(0,10)}${u.referrer?` · 经 ${escapeHtml(u.referrer)} 邀请`:""}</div></div><div class="admin-actions"><span class="st-paid">${u.credits} 次</span><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="1">+1</button><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="10">+10</button><button class="btn ghost danger" data-cred="${escapeHtml(u.username)}" data-delta="-1">-1</button></div></div>`).join("");
+      const rows=(r.list||[]).map(u=>`<div class="admin-row"><div><b>${escapeHtml(u.nickname)}</b> <span class="muted">@${escapeHtml(u.username)}</span>${u.is_admin?' <span class="st-paid">管理员</span>':''}${u.is_banned?' <span style="color:#d98a7a">已封禁</span>':''}<div class="od">邀请码 ${escapeHtml(u.ref_code)} · 拉新 ${u.referred||0} 人 · ${String(u.created_at||"").slice(0,10)}${u.referrer?` · 经 ${escapeHtml(u.referrer)} 邀请`:""}${u.device_id?`<br>设备 ${escapeHtml(String(u.device_id).slice(0,10))}${u.client_ip?` · IP ${escapeHtml(u.client_ip)}`:""}`:""}</div></div><div class="admin-actions"><span class="st-paid">${u.credits} 次</span><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="1">+1</button><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="10">+10</button><button class="btn ghost danger" data-cred="${escapeHtml(u.username)}" data-delta="-1">-1</button>${u.is_admin?"":(u.is_banned?`<button class="btn ghost" data-ban="${escapeHtml(u.username)}" data-banned="false">解封</button>`:`<button class="btn ghost danger" data-ban="${escapeHtml(u.username)}" data-banned="true">封禁</button>`)}</div></div>`).join("");
       body.innerHTML=`<div class="admin-list">${rows||'<p class="modal-sub">暂无用户</p>'}</div>`;
       body.querySelectorAll("[data-cred]").forEach(btn=>btn.onclick=async()=>{
         const uname=btn.dataset.cred, delta=Number(btn.dataset.delta);
@@ -1701,6 +1701,15 @@ async function loadAdminTab(){
           const rr=await sbRpc("admin_set_credits",{p_token:token,p_username:uname,p_delta:delta});
           if(!rr||rr.ok===false) throw new Error(rr?.reason==="no_user"?"用户不存在":(rr?.reason||"操作失败"));
           showToast("额度已调整"); loadAdminTab();
+        }catch(e){ showToast(e.message); }
+      });
+      body.querySelectorAll("[data-ban]").forEach(btn=>btn.onclick=async()=>{
+        const uname=btn.dataset.ban, banned=btn.dataset.banned==="true";
+        if(banned && !confirm(`确认封禁 @${uname}？封禁后该账号无法登录，已登录的会话也会失效。`)) return;
+        try{
+          const rr=await sbRpc("admin_set_banned",{p_token:token,p_username:uname,p_banned:banned});
+          if(!rr||rr.ok===false) throw new Error(rr?.reason||"操作失败");
+          showToast(banned?"已封禁":"已解封"); loadAdminTab();
         }catch(e){ showToast(e.message); }
       });
     }else if(adminTab==="orders"){

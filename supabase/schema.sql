@@ -99,11 +99,14 @@ create table if not exists accounts (
   referrer text,                              -- 注册时来自谁的邀请码（不可改）
   credits integer not null default 0,         -- 深度解析额度（服务端记账）
   device_id text,                             -- 注册设备（用于防刷）
+  client_ip text,                             -- 注册 IP（用于防刷，取 x-forwarded-for）
+  is_banned boolean not null default false,   -- 封禁标记（店主后台可封号）
   failed_attempts integer not null default 0,
   locked_until timestamptz,
   created_at timestamptz not null default now()
 );
 create index if not exists idx_accounts_ref on accounts(ref_code);
+create index if not exists idx_accounts_ip on accounts(client_ip);
 
 create table if not exists sessions (
   token text primary key,                     -- 随机会话令牌（仅存前端 localStorage）
@@ -155,11 +158,14 @@ begin
 end $$;
 
 -- 注册（带邀请码 → 双方各 +1 次深度解析，服务端记账）
+-- 防刷：同一设备 24h 最多 3 个号；同一 IP 24h 最多 6 个号；不能用自己号当推荐人；
+--       同一设备只能被同一邀请码计一次拉新
 create or replace function register_account(p_username text, p_password text, p_nickname text, p_referrer text, p_device text)
 returns json language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_username text; v_nick text; v_ref text; v_id uuid; v_token text;
   v_ref_ok boolean := false; v_credits int := 0; v_code text;
+  v_headers text; v_ip text; v_ip_count int;
 begin
   v_username := lower(trim(coalesce(p_username,'')));
   if v_username !~ '^[a-z0-9_]{4,20}$' then raise exception '用户名需为 4-20 位字母、数字或下划线'; end if;
@@ -170,22 +176,43 @@ begin
   if length(v_nick) > 20 then raise exception '昵称最多 20 个字'; end if;
   v_ref := upper(trim(coalesce(p_referrer,'')));
   if v_ref <> '' and not valid_referrer(v_ref) then raise exception '邀请码格式不对'; end if;
+  -- 设备维度防刷
   if length(coalesce(p_device,'')) >= 8 then
     if (select count(*) from accounts where device_id = p_device and created_at > now() - interval '24 hours') >= 3 then
       raise exception '注册太频繁，请稍后再试';
     end if;
   end if;
+  -- IP 维度防刷（取 x-forwarded-for / x-real-ip；取不到就跳过，不影响正常注册）
+  v_headers := coalesce(current_setting('request.headers', true), '');
+  v_ip := substring(v_headers from '"x-forwarded-for"\s*:\s*"([^"]+)"');
+  if v_ip is null or v_ip = '' then
+    v_ip := substring(v_headers from '"x-real-ip"\s*:\s*"([^"]+)"');
+  end if;
+  if v_ip is not null and v_ip <> '' then
+    v_ip := split_part(v_ip, ',', 1);
+    select count(*) into v_ip_count from accounts
+      where client_ip = v_ip and created_at > now() - interval '24 hours';
+    if v_ip_count >= 6 then raise exception '注册太频繁，请稍后再试'; end if;
+  end if;
   if v_ref <> '' then
     select true into v_ref_ok from accounts where ref_code = v_ref;
     v_ref_ok := coalesce(v_ref_ok, false);
     if not v_ref_ok then raise exception '邀请码不存在，请核对'; end if;
+    -- 自荐防护：不能用自己设备注册的号当推荐人
+    if exists (select 1 from accounts where ref_code = v_ref and device_id = p_device) then
+      raise exception '不能使用自己的邀请码注册';
+    end if;
+    -- 同一设备只能被同一邀请码计一次拉新（防止小号互相刷）
+    if exists (select 1 from accounts where referrer = v_ref and device_id = p_device) then
+      raise exception '该设备已被此邀请码计过一次拉新';
+    end if;
   end if;
   v_code := 'X' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 7));
-  insert into accounts (username, nickname, password_hash, ref_code, referrer, credits, device_id)
+  insert into accounts (username, nickname, password_hash, ref_code, referrer, credits, device_id, client_ip)
   values (v_username, v_nick, crypt(p_password, gen_salt('bf', 10)), v_code,
           case when v_ref_ok then v_ref else null end,
           case when v_ref_ok then 1 else 0 end,
-          nullif(p_device,''))
+          nullif(p_device,''), nullif(v_ip,''))
   returning id into v_id;
   if v_ref_ok then
     update accounts set credits = credits + 1 where ref_code = v_ref;
@@ -206,6 +233,7 @@ begin
   v_username := lower(trim(coalesce(p_username,'')));
   select * into v_user from accounts where username = v_username;
   if v_user.id is null then raise exception '用户名或密码错误'; end if;
+  if v_user.is_banned then raise exception '该账号已被封禁，请联系店主'; end if;
   if v_user.locked_until is not null and v_user.locked_until > now() then
     raise exception '尝试次数过多，请 15 分钟后再试';
   end if;
@@ -344,12 +372,28 @@ begin
   v_id := admin_account(p_token);
   if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
   select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
-    select username, nickname, ref_code, referrer, credits, is_admin, created_at,
+    select username, nickname, ref_code, referrer, credits, is_admin, is_banned,
+           device_id, client_ip, created_at,
            (select count(*) from accounts where referrer = a.ref_code) as referred
     from accounts a
     limit 300
   ) x;
   return json_build_object('ok', true, 'list', v);
+end $$;
+
+-- 封禁 / 解封账号（封禁后无法登录）
+create or replace function admin_set_banned(p_token text, p_username text, p_banned boolean)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  update accounts set is_banned = p_banned where username = lower(trim(p_username));
+  if not found then return json_build_object('ok', false, 'reason', 'no_user'); end if;
+  if p_banned then
+    delete from sessions where account_id = (select id from accounts where username = lower(trim(p_username)));
+  end if;
+  return json_build_object('ok', true);
 end $$;
 
 -- 调整用户额度（p_delta 可为负数，不会扣成负数）
