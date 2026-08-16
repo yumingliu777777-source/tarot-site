@@ -1251,8 +1251,10 @@ async function createPaymentOrder(order){
 
 const LOCAL_ACCOUNT_KEY = "lunar-tarot-local-account-v1";
 const LOCAL_MEMBER_KEY = "lunar-tarot-local-member-v1";
+const LOCAL_ORDER_KEY = "lunar-tarot-local-order-v1";
 const readLocalAccount = () => { try{return JSON.parse(localStorage.getItem(LOCAL_ACCOUNT_KEY)||"null");}catch{return null;} };
-const readLocalMember = () => { try{return JSON.parse(localStorage.getItem(LOCAL_MEMBER_KEY)||"null");}catch{return null;} };
+const readLocalMember = () => { try{const member=JSON.parse(localStorage.getItem(LOCAL_MEMBER_KEY)||"null");return member?.verified===true&&member.expires>Date.now()?member:null;}catch{return null;} };
+const readLocalOrder = () => { try{return JSON.parse(localStorage.getItem(LOCAL_ORDER_KEY)||"null");}catch{return null;} };
 function openAccount(){
   const content=$("toolContent"), account=readLocalAccount(), member=readLocalMember();
   if(account){
@@ -1285,6 +1287,24 @@ function openPromotion(){
   $("toolModal").classList.remove("hidden");
 }
 
+function openMemberBilling(){
+  if(!requireLocalAccount()) return;
+  const content=$("toolContent"), member=readLocalMember(), pending=readLocalOrder();
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">灵感会员</h2><p class="modal-sub">免费占卜、每日一签与词典始终可用。会员权益仅会在微信或支付宝支付成功并通过服务端验证后生效。</p><section class="member-hero"><h3>${member?`当前：${member.plan}`:"选择会员方案"}</h3><p>${member?`剩余 ${member.credits} 次 AI 解读额度，有效至 ${new Date(member.expires).toLocaleDateString("zh-CN")}。`:pending?`你有一笔待支付订单：${pending.planName}，尚未开通会员权益。`:"未支付不会开通 VIP 或发放解读额度。"}</p></section><div class="plan-grid">${MEMBER_PLANS.map((plan,index)=>`<button class="plan ${index===0?"selected":""}" data-billing-plan="${plan.id}"><h4>${plan.name}</h4><div class="price">¥${plan.price}</div><p>${plan.detail}</p></button>`).join("")}</div><div class="checkout-options"><button class="pay-option selected" data-billing-pay="wechat">微信支付</button><button class="pay-option" data-billing-pay="alipay">支付宝</button></div><div class="btn-row"><button class="btn primary" id="btnCreateOrder">创建待支付订单</button></div>`;
+  let planId="single", paymentMethod="wechat";
+  content.querySelectorAll("[data-billing-plan]").forEach(button=>button.onclick=()=>{planId=button.dataset.billingPlan;content.querySelectorAll("[data-billing-plan]").forEach(item=>item.classList.toggle("selected",item===button));});
+  content.querySelectorAll("[data-billing-pay]").forEach(button=>button.onclick=()=>{paymentMethod=button.dataset.billingPay;content.querySelectorAll("[data-billing-pay]").forEach(item=>item.classList.toggle("selected",item===button));});
+  $("btnCreateOrder").onclick=()=>{const plan=MEMBER_PLANS.find(item=>item.id===planId);localStorage.setItem(LOCAL_ORDER_KEY,JSON.stringify({id:`LOCAL-${Date.now()}`,planId,planName:plan.name,paymentMethod,status:"pending",createdAt:Date.now()}));showToast("待支付订单已创建，未支付不会开通会员");openMemberBilling();};
+  $("toolModal").classList.remove("hidden");
+}
+function openPromotionSecure(){
+  if(!requireLocalAccount()) return;
+  const content=$("toolContent"), link=`${location.href.split("?")[0]}?ref=${getReferralCode()}`, referrer=getReferrer();
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">奖励仅在好友首单支付成功并通过服务端风控后发放，浏览器本地无法直接领取。</p><section class="promo-banner"><h3>${referrer?"好友优惠已识别":"邀请好友，分享一束星光"}</h3><p>${referrer?"首单将减 ¥0.50；支付成功后，邀请人获得 1 次 AI 解读额度。":"好友使用专属链接完成首单后，好友立减 ¥0.50，你获得 1 次官方 AI 解读额度。"}</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友完成首单</div><div class="promo-step"><b>03</b>支付回调验证后发放</div></div></section><div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></div>`;
+  $("btnCopyPromo").onclick=()=>copyText(link).then(()=>showToast("推广链接已复制"));
+  $("toolModal").classList.remove("hidden");
+}
+
 function goHome(){
   stopCylinder();
   state={spread:"single",drawn:[],flipped:0,question:"",fan:[]};
@@ -1293,7 +1313,7 @@ function goHome(){
   closeModal();
   goStage(0);
 }
-$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberExperience; $("btnPromo").onclick=openPromotion; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
+$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberBilling; $("btnPromo").onclick=openPromotionSecure; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
 
 /* init */
 buildDeck();
