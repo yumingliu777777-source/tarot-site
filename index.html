@@ -273,6 +273,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 .dict-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}.dict-item{background:var(--panel);border:1px solid var(--line);padding:15px}.dict-item h4{font-family:var(--serif);color:var(--gold-hi);letter-spacing:.08em}.dict-item .en{font-size:10px;color:var(--gold-dim);letter-spacing:.12em;margin:4px 0 9px}.dict-item .kws{font-size:11px;color:var(--gold);margin-bottom:8px}.dict-item p{font-size:12px;color:var(--muted);line-height:1.7}.share-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:24px}
 .api-form{display:grid;gap:14px}.api-form label{display:grid;gap:7px;font-size:12px;letter-spacing:.12em;color:var(--muted)}.api-form input,.api-form select{width:100%;background:var(--panel);border:1px solid var(--line);padding:12px;color:var(--ink);font:14px var(--sans);outline:none}.api-form input:focus,.api-form select:focus{border-color:var(--gold)}.api-note{font-size:12px;color:var(--muted);line-height:1.75}.api-analysis{background:var(--panel);border:1px solid rgba(123,108,214,.4);padding:24px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-size:14px}.api-analysis.loading{color:var(--muted)}
 .member-hero{border:1px solid rgba(201,169,87,.45);background:linear-gradient(135deg,rgba(201,169,87,.13),rgba(123,108,214,.12));padding:20px;margin-bottom:18px}.member-hero h3{font:20px var(--serif);color:var(--gold-hi);letter-spacing:.12em}.member-hero p{font-size:13px;color:var(--muted);line-height:1.8;margin-top:8px}.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.plan{position:relative;text-align:left;background:var(--panel);border:1px solid var(--line);padding:18px;cursor:pointer;transition:.25s var(--ease)}.plan:hover,.plan.selected{border-color:var(--gold);box-shadow:0 0 20px rgba(201,169,87,.12)}.plan h4{font:16px var(--serif);color:var(--gold-hi);letter-spacing:.08em}.plan .price{font:26px var(--serif);color:var(--gold);margin:10px 0 5px}.plan p{font-size:11px;color:var(--muted);line-height:1.65}.referral-box{margin-top:18px;background:var(--panel);border:1px solid var(--line);padding:18px}.referral-box h3{font:16px var(--serif);color:var(--gold-hi);letter-spacing:.1em}.referral-box p{font-size:12px;color:var(--muted);line-height:1.75;margin:8px 0}.referral-link{display:flex;gap:8px}.referral-link input{min-width:0;flex:1;background:var(--bg);border:1px solid var(--line);color:var(--muted);padding:10px;font-size:11px}.checkout-options{display:flex;gap:10px;margin-top:18px}.pay-option{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:13px;cursor:pointer;font:14px var(--sans)}.pay-option.selected{border-color:var(--gold);color:var(--gold-hi)}
+.account-summary{display:flex;gap:14px;align-items:center;padding:18px;background:var(--panel);border:1px solid var(--line);margin-bottom:18px}.avatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--gold-dim);color:#17130a;font:22px var(--serif)}.account-summary h3{font:18px var(--serif);color:var(--gold-hi);letter-spacing:.1em}.account-summary p{font-size:12px;color:var(--muted);margin-top:4px}.benefit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.benefit{background:var(--panel);border:1px solid var(--line);padding:14px}.benefit strong{display:block;color:var(--gold-hi);font:20px var(--serif)}.benefit span{font-size:11px;color:var(--muted)}.promo-banner{border:1px solid rgba(123,108,214,.5);background:rgba(123,108,214,.09);padding:20px;margin-bottom:16px}.promo-banner h3{font:19px var(--serif);color:var(--gold-hi);letter-spacing:.1em}.promo-banner p{font-size:13px;color:var(--muted);line-height:1.8;margin:8px 0}.promo-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}.promo-step{padding:13px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted);line-height:1.65}.promo-step b{display:block;color:var(--gold);font-size:16px;margin-bottom:4px}
 @media (max-width:760px){
   .spread-grid{grid-template-columns:1fr;max-width:420px}
   .card-list{grid-template-columns:1fr}
@@ -287,6 +288,7 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
   .intro-block{padding:20px 20px 18px}
   .header-tools{gap:5px}.tool-btn{width:30px;height:30px;font-size:13px}.modal-panel{padding:22px 16px}.daily-card{grid-template-columns:1fr}.daily-card .thumb{height:150px;width:92px}.history-item{grid-template-columns:1fr}.history-item time{grid-row:1}.dict-toolbar{flex-wrap:wrap}.dict-filter{height:40px}
   .plan-grid{grid-template-columns:1fr}.checkout-options{flex-direction:column}
+  .benefit-grid,.promo-steps{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -312,6 +314,8 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
       <button class="tool-btn" id="btnDict" title="牌意词典" aria-label="牌意词典">⌕</button>
       <button class="tool-btn" id="btnApi" title="AI 接口设置" aria-label="AI 接口设置">⚙</button>
       <button class="tool-btn" id="btnMember" title="灵感会员" aria-label="灵感会员">¥</button>
+      <button class="tool-btn" id="btnPromo" title="推广活动" aria-label="推广活动">✦</button>
+      <button class="tool-btn" id="btnAccount" title="登录与账户" aria-label="登录与账户">◉</button>
     </div>
     <div class="step-dots">
       <div class="dot on" id="dot0"></div>
@@ -1245,6 +1249,42 @@ async function createPaymentOrder(order){
   try{const response=await fetch(`${apiBase.replace(/\/$/,"")}/orders`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(order)});if(!response.ok)throw new Error("创建订单失败");const result=await response.json();if(result.paymentUrl)location.href=result.paymentUrl;else throw new Error("支付链接不可用");}catch(error){showToast(error.message||"暂时无法创建订单");}
 }
 
+const LOCAL_ACCOUNT_KEY = "lunar-tarot-local-account-v1";
+const LOCAL_MEMBER_KEY = "lunar-tarot-local-member-v1";
+const readLocalAccount = () => { try{return JSON.parse(localStorage.getItem(LOCAL_ACCOUNT_KEY)||"null");}catch{return null;} };
+const readLocalMember = () => { try{return JSON.parse(localStorage.getItem(LOCAL_MEMBER_KEY)||"null");}catch{return null;} };
+function openAccount(){
+  const content=$("toolContent"), account=readLocalAccount(), member=readLocalMember();
+  if(account){
+    const initials=(account.name||"星").slice(0,1);
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(account.name)}</h3><p>${escapeHtml(account.email||"本地体验账户")}</p></div></section><div class="benefit-grid"><div class="benefit"><strong>${member?.credits||0}</strong><span>AI 解读额度</span></div><div class="benefit"><strong>${member?.plan||"免费"}</strong><span>当前权益</span></div><div class="benefit"><strong>${member?.expires?new Date(member.expires).toLocaleDateString("zh-CN"):"--"}</strong><span>权益有效期</span></div></div><div class="btn-row"><button class="btn ghost" id="btnLogout">退出本地账户</button></div>`;
+    $("btnLogout").onclick=()=>{localStorage.removeItem(LOCAL_ACCOUNT_KEY);localStorage.removeItem(LOCAL_MEMBER_KEY);showToast("已退出本地账户");openAccount();};
+  }else{
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">登录星夜塔罗</h2><p class="modal-sub">本地体验版账户仅保存在当前浏览器，用于测试会员与推广流程。</p><form class="api-form" id="loginForm"><label>昵称<input id="loginName" maxlength="16" required placeholder="给自己起一个名字"></label><label>邮箱（选填）<input id="loginEmail" type="email" placeholder="name@example.com"></label><div class="btn-row"><button class="btn primary" type="submit">进入星夜塔罗</button></div></form>`;
+    $("loginForm").onsubmit=event=>{event.preventDefault();const account={name:$("loginName").value.trim(),email:$("loginEmail").value.trim(),createdAt:Date.now()};localStorage.setItem(LOCAL_ACCOUNT_KEY,JSON.stringify(account));showToast("登录成功");openAccount();};
+  }
+  $("toolModal").classList.remove("hidden");
+}
+function requireLocalAccount(){if(readLocalAccount())return true;openAccount();showToast("请先登录本地体验账户");return false;}
+function openMemberExperience(){
+  if(!requireLocalAccount())return;
+  const content=$("toolContent"), member=readLocalMember();
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">灵感会员</h2><p class="modal-sub">免费占卜、每日一签与词典始终可用。以下为本地会员体验流程，不会创建真实订单。</p><section class="member-hero"><h3>${member?`当前：${member.plan}`:"低价解锁更多灵感"}</h3><p>${member?`剩余 ${member.credits} 次 AI 解读额度，有效至 ${new Date(member.expires).toLocaleDateString("zh-CN")}。`:"官方 AI 深度解读、更多历史与分享权益，均可在本地先完整体验。"}</p></section><div class="plan-grid" id="localPlanGrid">${MEMBER_PLANS.map((plan,index)=>`<button class="plan ${index===0?"selected":""}" data-local-plan="${plan.id}"><h4>${plan.name}</h4><div class="price">¥${plan.price}</div><p>${plan.detail}</p></button>`).join("")}</div><div class="checkout-options" id="localPayOptions"><button class="pay-option selected" data-local-pay="wechat">微信支付</button><button class="pay-option" data-local-pay="alipay">支付宝</button></div><div class="btn-row"><button class="btn primary" id="btnLocalActivate">本地体验开通</button></div>`;
+  let planId="single";
+  content.querySelectorAll("[data-local-plan]").forEach(button=>button.onclick=()=>{planId=button.dataset.localPlan;content.querySelectorAll("[data-local-plan]").forEach(item=>item.classList.toggle("selected",item===button));});
+  content.querySelectorAll("[data-local-pay]").forEach(button=>button.onclick=()=>content.querySelectorAll("[data-local-pay]").forEach(item=>item.classList.toggle("selected",item===button)));
+  $("btnLocalActivate").onclick=()=>{const plan=MEMBER_PLANS.find(item=>item.id===planId), days=planId==="single"?7:30, credits=planId==="single"?1:planId==="light"?10:30;localStorage.setItem(LOCAL_MEMBER_KEY,JSON.stringify({plan:plan.name,credits,expires:Date.now()+days*86400000}));showToast("本地会员权益已开通");openMemberExperience();};
+  $("toolModal").classList.remove("hidden");
+}
+function openPromotion(){
+  if(!requireLocalAccount())return;
+  const content=$("toolContent"), link=`${location.href.split("?")[0]}?ref=${getReferralCode()}`, referrer=getReferrer();
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">星光邀请计划</h2><p class="modal-sub">本地活动预览。上线后，奖励将以后端支付回调与风控结果为准。</p><section class="promo-banner"><h3>${referrer?"你已获得好友邀请":"邀请好友，分享一束星光"}</h3><p>${referrer?"首单可减 ¥0.50；完成后邀请人会获得 1 次 AI 解读额度。":"每位好友完成首单后，好友立减 ¥0.50，你将获得 1 次官方 AI 解读额度。"}</p><div class="promo-steps"><div class="promo-step"><b>01</b>复制专属链接</div><div class="promo-step"><b>02</b>好友完成首单</div><div class="promo-step"><b>03</b>奖励自动到账</div></div></section><div class="referral-box"><h3>我的专属推广链接</h3><div class="referral-link"><input id="promoLink" readonly value="${link}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></div><div class="btn-row"><button class="btn ghost" id="btnTestReward">测试奖励到账</button></div>`;
+  $("btnCopyPromo").onclick=()=>copyText(link).then(()=>showToast("推广链接已复制"));
+  $("btnTestReward").onclick=()=>{const member=readLocalMember()||{plan:"推广体验",credits:0,expires:Date.now()+30*86400000};member.credits+=1;localStorage.setItem(LOCAL_MEMBER_KEY,JSON.stringify(member));showToast("本地测试奖励：+1 解读额度");};
+  $("toolModal").classList.remove("hidden");
+}
+
 function goHome(){
   stopCylinder();
   state={spread:"single",drawn:[],flipped:0,question:"",fan:[]};
@@ -1253,7 +1293,7 @@ function goHome(){
   closeModal();
   goStage(0);
 }
-$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMember; $("btnAiReport").onclick=generateAiReportV2; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
+$("btnDaily").onclick=()=>openModal("daily"); $("btnHistory").onclick=()=>openModal("history"); $("btnDict").onclick=()=>openModal("dict"); $("btnApi").onclick=openApiSettings; $("btnMember").onclick=openMemberExperience; $("btnPromo").onclick=openPromotion; $("btnAccount").onclick=openAccount; $("btnAiReport").onclick=generateAiReportV2; $("btnHome").onclick=goHome; $("btnCloseModal").onclick=closeModal; $("toolModal").onclick=e=>{if(e.target===$("toolModal"))closeModal();};
 
 /* init */
 buildDeck();
