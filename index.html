@@ -191,7 +191,13 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 .card-face .cname-en{font-size:9px;letter-spacing:.28em;color:#8a7a4e;text-transform:uppercase;margin-bottom:10px}
 .card-face.rev .glyph{transform:rotate(180deg)}
 .card-face.rev .num::after{content:"逆";font-size:9px;color:#a03f38;letter-spacing:.05em;margin-left:4px}
-/* 扑克牌式数字角标（html[data-numstyle] 控制显示/隐藏） */
+/* ── 扑克牌式数字角标（html[data-numstyle] 控制显示/隐藏）── */
+.num-toggle{display:flex;align-items:center;justify-content:center;gap:8px;margin:14px auto 0;
+  font-size:12px;color:var(--muted);letter-spacing:.1em}
+.num-toggle .nt-btn{border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  padding:7px 16px;cursor:pointer;font:12px var(--sans);letter-spacing:.08em;transition:all .25s var(--ease)}
+.num-toggle .nt-btn:hover{border-color:var(--gold-dim);color:var(--ink)}
+.num-toggle .nt-btn.sel{border-color:var(--gold);color:var(--gold-hi);background:rgba(201,169,87,.08)}
 .card-face .poker-corner{position:absolute;display:flex;flex-direction:column;align-items:center;line-height:1.05;
   color:#6d5a24;font-family:var(--serif);pointer-events:none;z-index:2}
 .card-face .poker-corner.tl{top:9px;left:9px}
@@ -541,6 +547,11 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
     <p class="sub" id="revealSub">凭直觉，从牌扇中挑出属于你的牌</p>
     <div class="pick-zone" id="pickZone"></div>
     <p class="reveal-hint" id="revealHint">从牌扇中逐张挑选，牌会飞入对应的牌位</p>
+    <div class="num-toggle" id="numToggle3">
+      <span>牌面数字：</span>
+      <button class="nt-btn sel" data-nt="poker">扑克样式</button>
+      <button class="nt-btn" data-nt="hide">隐藏数字</button>
+    </div>
     <div class="spread-zone">
       <div class="spread-table" id="spreadTable"></div>
     </div>
@@ -553,6 +564,11 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
   <!-- Stage 4: report -->
   <section class="stage hidden" id="stage4">
     <div class="goldline"></div>
+    <div class="num-toggle" id="numToggle4">
+      <span>牌面数字：</span>
+      <button class="nt-btn sel" data-nt="poker">扑克样式</button>
+      <button class="nt-btn" data-nt="hide">隐藏数字</button>
+    </div>
     <div class="report" id="report"></div>
     <div class="btn-row">
       <button class="btn ghost" id="btnReportRedo">重新占卜</button>
@@ -733,7 +749,15 @@ const NUM_STYLE_KEY = "lunar-tarot-card-num-v1";
 function applyNumStyle(){
   const v = localStorage.getItem(NUM_STYLE_KEY)==="hide" ? "hide" : "poker";
   document.documentElement.setAttribute("data-numstyle", v);
-  const b=$("btnNumStyle"); if(b) b.textContent = v==="poker" ? "牌面:扑克" : "牌面:隐藏";
+  document.querySelectorAll(".num-toggle .nt-btn").forEach(b=>b.classList.toggle("sel", b.dataset.nt===v));
+  const hb=$("btnNumStyle"); if(hb) hb.textContent = v==="poker" ? "牌面:扑克" : "牌面:隐藏";
+}
+function bindNumToggles(){
+  document.querySelectorAll(".num-toggle .nt-btn").forEach(b=>b.onclick=()=>{
+    localStorage.setItem(NUM_STYLE_KEY, b.dataset.nt);
+    applyNumStyle();
+    showToast(b.dataset.nt==="poker"?"牌面已切换为扑克牌数字样式":"牌面数字已隐藏");
+  });
 }
 let stage = 0;
 function goStage(n){
@@ -1872,6 +1896,7 @@ $("btnDaily").onclick=()=>{track("open_daily_draw");openModal("daily");}; $("btn
 
 /* init */
 buildDeck();
+bindNumToggles();
 applyNumStyle();
 updateMemberBadge();
 updateNewbieBanner();
