@@ -127,10 +127,11 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 /* ── Stage 1: question & spread ─────────────────────── */
 .ask-box{max-width:620px;margin:0 auto 44px}
 .ask-box label{display:block;font-size:12px;letter-spacing:.3em;color:var(--muted);margin-bottom:10px;text-align:center}
-.ask-box input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+.ask-box input,.ask-box textarea{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);
   font-family:var(--serif);font-size:17px;letter-spacing:.08em;padding:16px 20px;border-radius:2px;outline:none;transition:border .3s}
-.ask-box input:focus{border-color:var(--gold)}
-.ask-box input::placeholder{color:#4d4a40;font-family:var(--sans);font-size:14px}
+.ask-box textarea{resize:vertical;min-height:60px;line-height:1.7}
+.ask-box input:focus,.ask-box textarea:focus{border-color:var(--gold)}
+.ask-box input::placeholder,.ask-box textarea::placeholder{color:#4d4a40;font-family:var(--sans);font-size:14px}
 .spread-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:860px;margin:0 auto}
 .spread-card{cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:4px;
   padding:26px 20px 20px;text-align:center;transition:all .35s var(--ease);position:relative;overflow:hidden}
@@ -465,8 +466,8 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
     <h2 class="title">心之所问</h2>
     <p class="sub">将你的问题凝聚成一句话，越具体，答案越清晰</p>
     <div class="ask-box">
-      <label>你的问题（可留空，默认为整体运势）</label>
-      <input id="questionInput" type="text" maxlength="60" placeholder="例如：这段感情将走向何方？">
+      <label>你的问题（可留空，默认为整体运势 · 写得越具体，解读越准）</label>
+      <textarea id="questionInput" maxlength="200" rows="2" placeholder="例如：这段感情将走向何方？也可以补充背景：我和他认识半年，最近总为小事吵架……"></textarea>
     </div>
     <div class="spread-grid" id="spreadGrid">
       <div class="spread-card" data-spread="single">
@@ -1156,9 +1157,10 @@ function renderReport(){
   const pick = ()=> { const k = kwPool[rand(kwPool.length)]; if(used.has(k)) return pick(); used.add(k); return k; };
   const a1 = pick(), a2 = pick();
   const advTone = uprightN>=reversedN ? "顺势而为" : "静待时机";
-  advice.push({t:"行动建议", p:`<p>整体能量偏向「${advTone}」。近期请围绕 <b>${a1}</b> 展开行动，同时留意 <b>${a2}</b> 带来的提示，让每一次选择都更贴近内心。</p>`});
-  if(domElem) advice.push({t:"元素提示", p:`<p>牌阵中${ELEM_THEME[domElem]}能量最强，${ELEM_DESC[domElem].replace("。","，")} 把它作为近期决策的底色。</p>`});
-  advice.push({t:"心念指引", p:`<p>占卜的意义在于照见，而非束缚。无论牌面如何，请记得：你永远拥有重新选择的权利，星光只是陪你走夜路的朋友。</p>`});
+  advice.push({t:"行动建议", p:`<p>整体能量偏向「${advTone}」。回到你的问题${state.question?`「${state.question}」`:""}，近期可以围绕 <b>${a1}</b> 动手试试，同时留意 <b>${a2}</b> 带来的提示。</p>`});
+  if(domElem) advice.push({t:"元素提示", p:`<p>整副牌里${ELEM_THEME[domElem]}的力量最强，${ELEM_DESC[domElem].replace("。","，")} 做决定时把它当底色。</p>`});
+  advice.push({t:"一句话总结", p:`<p>把牌面翻译成大白话，最实在的一句是：<b>「${first[0]}」${first.reversed?"逆位":"正位"}——${firstMeaning}</b></p>`});
+  advice.push({t:"心念指引", p:`<p>牌面只是照见，不是判决。无论抽到什么，选择权永远在你手里。</p>`});
 
   root.innerHTML = `
     <div class="report-head">
@@ -1259,8 +1261,20 @@ function downloadShareCard(){
 
 function apiPrompt(){
   const spread=SPREADS[state.spread];
-  const cards=state.drawn.map((card,index)=>`${spread.slots[index].label}：${card[0]}（${card.reversed?"逆位":"正位"}），关键词：${card[4].join("、")}，释义：${card.reversed?card[6]:card[5]}`).join("\n");
-  return `你是一位温和、专业、不过度确定的中文塔罗解读师。请基于以下牌阵给出深度解读。不要声称预测绝对未来，不提供医疗、法律、投资或危机建议。结构包含：整体主题、各牌关联、潜在盲点、可执行建议（3条）、给提问者的一句总结。\n\n提问：${state.question||"整体运势指引"}\n牌阵：${spread.name}\n${cards}`;
+  const cards=state.drawn.map((card,index)=>`第${index+1}张【${spread.slots[index].label}】${card[0]}（${card.reversed?"逆位":"正位"}），关键词：${card[4].join("、")}，含义：${card.reversed?card[6]:card[5]}`).join("\n");
+  return `你是一位温和、接地气的中文塔罗解读师，说话像朋友聊天，全程用大白话，别堆砌华丽辞藻，别故作高深，别绕弯子。
+请基于下面的牌阵，给出一份【详细、具体、能落地】的深度解读，结构如下：
+1. 开头总览：用两三句话，大白话说清楚这副牌整体在讲什么、这件事现在处于什么状态。
+2. 逐张详解：每张牌单独一段。结合它的牌位含义和正逆位，说清楚它对应你生活中的哪件事/哪种心态、在提醒你什么。尽量结合提问场景，举具体的例子，不要只说套话。
+3. 牌与牌的联系：点出哪几张牌互相呼应、哪几张在打架，说明这背后藏着的深层情况。
+4. 接下来怎么走：给出 3-5 条具体、可执行的小行动（要真的能照着做，不要"保持积极心态"这种空话），并说说时间上的大致节奏。
+5. 心态盲点：提醒一个你容易忽略的心理坑。
+6. 结尾一句大白话总结：一句话收尾，像朋友拍着你肩膀说的那种。
+不要声称预测绝对未来，不提供医疗、法律、投资或危机建议。整体篇幅请尽量充实、具体。
+
+提问：${state.question||"整体运势指引"}
+牌阵：${spread.name}（共${state.drawn.length}张）
+${cards}`;
 }
 function openModal(kind){
   const content = $("toolContent");

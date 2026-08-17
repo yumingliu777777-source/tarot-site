@@ -72,7 +72,7 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({
           model: process.env.AI_MODEL,
           messages: [
-            { role: "system", content: "你以中文提供关怀、清晰且负责任的塔罗解读，不声称预测绝对未来，不提供医疗、法律、投资或危机建议。" },
+            { role: "system", content: "你以中文提供关怀、接地气的塔罗解读，说话像朋友聊天，全程大白话，不堆砌辞藻，不声称预测绝对未来，不提供医疗、法律、投资或危机建议。" },
             { role: "user", content: prompt },
           ],
           temperature: 0.75,
