@@ -8,6 +8,7 @@ const { md5 } = require("./epay");
 /** 方案 → 激活码有效期（天） */
 const PLAN_DAYS = { single: 7, light: 30, plus: 30 };
 const PLAN_NAMES = { single: "深度解读", light: "轻会员", plus: "星夜会员" };
+const PLAN_CREDITS = { single: 1, light: 10, plus: 30 };
 
 /**
  * 标记订单已支付并发放权益。
@@ -19,7 +20,7 @@ async function markOrderPaid(orderNo, money) {
   if (!orderNo) return { ok: false, reason: "missing_order_no" };
 
   const rows = await sb.select(
-    `orders?order_no=eq.${encodeURIComponent(orderNo)}&select=plan,price,status,issued_code,device_id`
+    `orders?order_no=eq.${encodeURIComponent(orderNo)}&select=plan,price,status,issued_code,device_id,account_id`
   );
   const order = rows && rows[0];
   if (!order) return { ok: false, reason: "order_not_found" };
@@ -41,14 +42,28 @@ async function markOrderPaid(orderNo, money) {
     { status: "paid", paid_at: new Date().toISOString() }
   );
 
-  // 自动发码：直接把权益预激活到买家设备，无需手动输入激活码
+  // 发放权益：订单绑定了账号则直接入账（走额度账本），否则预激活设备卡密
   await issueCode({ ...order, order_no: orderNo });
 
   return { ok: true };
 }
 
-/** 生成一张已激活的卡密并写入 orders.issued_code（幂等由调用方保证） */
+/** 发放权益（幂等由调用方保证）：优先账号入账，其次设备卡密 */
 async function issueCode(order) {
+  if (order.account_id) {
+    const credits = PLAN_CREDITS[order.plan] || 1;
+    await sb.rpc("add_credit", {
+      p_account_id: order.account_id,
+      p_delta: credits,
+      p_reason: "purchase",
+      p_note: `购买会员订单 ${order.order_no || ""}`,
+    });
+    await sb.update(
+      `orders?order_no=eq.${encodeURIComponent(order.order_no)}`,
+      { issued_code: "acct:" + order.account_id }
+    );
+    return "acct:" + order.account_id;
+  }
   const days = PLAN_DAYS[order.plan] || 30;
   const code = "X" + md5(String(Math.random()) + Date.now()).slice(0, 11).toUpperCase();
   const now = new Date().toISOString();
@@ -70,4 +85,4 @@ async function issueCode(order) {
   return code;
 }
 
-module.exports = { markOrderPaid, issueCode, PLAN_DAYS, PLAN_NAMES };
+module.exports = { markOrderPaid, issueCode, PLAN_DAYS, PLAN_NAMES, PLAN_CREDITS };

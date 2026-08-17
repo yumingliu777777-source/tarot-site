@@ -137,6 +137,9 @@ alter table accounts add column if not exists is_admin boolean not null default 
 alter table accounts add column if not exists client_ip text;
 alter table accounts add column if not exists is_banned boolean not null default false;
 create index if not exists idx_accounts_ip on accounts(client_ip);
+-- 老库升级：订单绑定账号（必须等 accounts 表存在后再加外键）
+alter table orders add column if not exists account_id uuid references accounts(id) on delete set null;
+create index if not exists idx_orders_account on orders(account_id);
 
 -- ============================================================
 -- 内部工具（不给网站调用，仅内部函数使用）
@@ -156,6 +159,12 @@ end $$;
 create or replace function valid_referrer(p_ref text)
 returns boolean language sql immutable set search_path = public as $$
   select p_ref ~ '^[A-Z0-9]{4,8}$';
+$$;
+
+-- 统一映射：方案 → 深度解析次数（全库唯一来源，杜绝各处不一致）
+create or replace function plan_credits(p_plan text)
+returns int language sql immutable set search_path = public as $$
+  select case p_plan when 'single' then 1 when 'light' then 10 when 'plus' then 30 else 1 end;
 $$;
 
 -- ============================================================
@@ -438,7 +447,7 @@ begin
   v_id := admin_account(p_token);
   if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
   select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
-    select order_no, plan_name, price, pay_method, referrer, status, created_at, paid_at
+    select order_no, plan_name, price, pay_method, referrer, status, created_at, paid_at, issued_code
     from orders
     where (p_status is null or p_status = '' or status = p_status)
     limit 300
@@ -446,7 +455,6 @@ begin
   return json_build_object('ok', true, 'list', v);
 end $$;
 
--- 改订单状态：标记已支付时自动发放权益（有账号→额度入账本；无账号→设备卡密），退款自动撤销，全部记录管理员日志
 create or replace function admin_set_order_status(p_token text, p_order_no text, p_status text)
 returns json language plpgsql security definer set search_path = public as $$
 declare
@@ -459,7 +467,7 @@ begin
   select status, plan, device_id into v_cur, v_plan, v_device from orders where order_no = p_order_no;
   if v_cur is null then return json_build_object('ok', false, 'reason', 'no_order'); end if;
   if v_cur = p_status then return json_build_object('ok', true); end if; -- 幂等
-  v_plan_credits := case when v_plan = 'single' then 1 when v_plan = 'light' then 10 when v_plan = 'plus' then 30 else 1 end;
+  v_plan_credits := plan_credits(v_plan);
   if p_status = 'paid' then
     if exists (select 1 from orders where order_no = p_order_no and issued_code is not null) then
       update orders set status = 'paid', paid_at = coalesce(paid_at, now()) where order_no = p_order_no;
@@ -496,6 +504,28 @@ begin
     update orders set status = p_status where order_no = p_order_no;
     perform log_admin(v_id, 'order_cancelled', p_order_no, '状态改 ' || p_status);
   end if;
+  return json_build_object('ok', true);
+end $$;
+
+-- 旧订单补发：把订单绑定到指定账号；若订单已支付且未发过权益，则按方案补发额度（幂等）
+create or replace function admin_set_order_account(p_token text, p_order_no text, p_username text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_cur text; v_plan text; v_icode text; v_acct uuid; v_plan_credits int;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select status, plan, issued_code into v_cur, v_plan, v_icode from orders where order_no = p_order_no;
+  if v_cur is null then return json_build_object('ok', false, 'reason', 'no_order'); end if;
+  select id into v_acct from accounts where username = lower(trim(p_username));
+  if v_acct is null then return json_build_object('ok', false, 'reason', 'no_user'); end if;
+  if v_icode is not null then return json_build_object('ok', false, 'reason', 'already_issued'); end if;
+  update orders set account_id = v_acct where order_no = p_order_no;
+  if v_cur = 'paid' then
+    v_plan_credits := plan_credits(v_plan);
+    perform add_credit(v_acct, v_plan_credits, 'purchase', '补发订单 ' || p_order_no);
+    update orders set issued_code = 'acct:' || v_acct::text where order_no = p_order_no;
+  end if;
+  perform log_admin(v_id, 'order_account', p_order_no, '绑定账号 ' || p_username);
   return json_build_object('ok', true);
 end $$;
 
@@ -640,6 +670,19 @@ begin
                            'price', round(v_price - v_discount, 2));
 end $$;
 
+-- 登录账号创建订单：复用安全计价逻辑，并把订单直接绑定账号
+create or replace function create_account_order(p_token text, p_plan text, p_method text, p_referrer text, p_device text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_order json; v_no text;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  v_order := create_order(p_plan, p_method, p_referrer, p_device);
+  v_no := v_order->>'order_no';
+  update orders set account_id = v_id where order_no = v_no;
+  return (v_order::jsonb || json_build_object('ok', true))::json;
+end $$;
+
 -- 激活会员卡密：服务端校验一次性使用，写入权益有效期
 create or replace function activate_code(p_code text, p_device text)
 returns json language plpgsql security definer set search_path = public as $$
@@ -650,15 +693,31 @@ begin
   v_code := upper(trim(coalesce(p_code,'')));
   select plan into v_plan from vip_codes where code = v_code and status = 'unused';
   if v_plan is null then raise exception '激活码不存在或已被使用'; end if;
-  if v_plan = 'single' then v_credits := 1; v_days := 7;
-  elsif v_plan = 'light' then v_credits := 10; v_days := 30;
-  else v_credits := 30; v_days := 30;
-  end if;
+  v_credits := plan_credits(v_plan);
+  v_days := case when v_plan = 'single' then 7 else 30 end;
   v_expires := now() + v_days * interval '1 day';
   update vip_codes set status = 'used', used_by = p_device, activated_at = now(), expires_at = v_expires
   where code = v_code and status = 'unused';
   if not found then raise exception '激活码不存在或已被使用'; end if;
   return json_build_object('plan', v_plan, 'credits', v_credits, 'expires_at', v_expires);
+end $$;
+
+-- 登录账号激活卡密：额度直接进入账号账本，不再只存在设备
+create or replace function activate_code_account(p_token text, p_code text, p_device text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_plan text; v_credits int; v_code text; v_left int;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  v_code := upper(trim(coalesce(p_code,'')));
+  select plan into v_plan from vip_codes where code = v_code and status = 'unused';
+  if v_plan is null then raise exception '激活码不存在或已被使用'; end if;
+  v_credits := plan_credits(v_plan);
+  update vip_codes set status = 'revoked', used_by = p_device, activated_at = now(), expires_at = now()
+  where code = v_code and status = 'unused';
+  if not found then raise exception '激活码不存在或已被使用'; end if;
+  v_left := add_credit(v_id, v_credits, 'purchase', '激活会员卡密 ' || v_code);
+  return json_build_object('ok', true, 'plan', v_plan, 'credits', v_credits, 'credits_left', v_left);
 end $$;
 
 -- 查询本设备已激活且未过期的会员（换浏览器/清缓存后自动恢复）
@@ -668,10 +727,10 @@ declare v_result json;
 begin
   select coalesce(json_agg(x), '[]'::json) into v_result from (
     select plan,
-           case plan when 'single' then 1 when 'light' then 10 else 30 end as credits,
+           plan_credits(plan) as credits,
            expires_at
     from vip_codes
-    where used_by = p_device and expires_at > now()
+    where used_by = p_device and status = 'used' and expires_at > now()
     order by activated_at desc
   ) x;
   return v_result;
@@ -802,6 +861,7 @@ end $$;
 
 -- ---------- 权限收口：工具函数/触发器函数不对匿名用户开放 ----------
 revoke execute on function plan_price(text)        from public, anon, authenticated;
+revoke execute on function plan_credits(text)      from public, anon, authenticated;
 revoke execute on function valid_referrer(text)    from public, anon, authenticated;
 revoke execute on function generate_codes(int,text) from public, anon, authenticated;
 revoke execute on function on_order_paid()         from public, anon, authenticated;
@@ -1051,9 +1111,8 @@ begin
   v_id := session_account(p_token);
   if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
   if length(coalesce(p_device,'')) < 8 then return json_build_object('ok', true, 'merged', 0); end if;
-  select coalesce(sum(c), 0) into v_credits from (
-    select case plan when 'single' then 1 when 'light' then 10 when 'plus' then 30 else 1 end as c
-    from vip_codes
+  select coalesce(sum(plan_credits(plan)), 0) into v_credits from (
+    select plan from vip_codes
     where used_by = p_device and status = 'used' and expires_at > now()
   ) t;
   if v_credits > 0 then
