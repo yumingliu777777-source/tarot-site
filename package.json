@@ -1,0 +1,11 @@
+{
+  "name": "tarot-site",
+  "private": true,
+  "version": "1.8.0",
+  "description": "星夜塔罗 · 静态站 + Vercel 后端 + Supabase",
+  "scripts": {
+    "test": "node --test",
+    "check": "node tests/check.js",
+    "serve": "python -m http.server 8080"
+  }
+}

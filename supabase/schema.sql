@@ -1,9 +1,19 @@
 -- ============================================================
--- 星夜塔罗 · 会员收款 + 推广返利（Supabase 免费档）
+-- 星夜塔罗 · 数据库全量脚本（可重复执行：create or replace / if not exists）
 -- 用法：supabase.com 注册 → New project → SQL Editor → New query
 --       → 把本文件全部内容粘贴进去 → Run
--- 以后改返利比例/首单立减：Table Editor → settings 表直接改数值，不用再跑 SQL
+-- 版本记录：schema_migrations 表会记录当前已应用的版本（Table Editor 可查）
 -- ============================================================
+
+-- ---------- 版本追踪 ----------
+create table if not exists schema_migrations (
+  version text primary key,
+  applied_at timestamptz not null default now(),
+  note text
+);
+insert into schema_migrations (version, note) values
+  ('3', '账号系统 + 店主后台 + 防刷 + 登录墙 + 微信收款 + 拉新返利')
+on conflict (version) do nothing;
 
 -- ---------- 0. 配置表 ----------
 create table if not exists settings (
