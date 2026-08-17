@@ -472,8 +472,11 @@ begin
     if exists (select 1 from orders where order_no = p_order_no and issued_code is not null) then
       update orders set status = 'paid', paid_at = coalesce(paid_at, now()) where order_no = p_order_no;
     else
-      -- 优先绑定账号发额度（购买入账本）；否则发设备卡密
-      select id into v_acct from accounts where device_id = v_device order by created_at desc limit 1;
+      -- 优先订单绑定账号 → 其次按设备匹配账号 → 否则发设备卡密
+      select account_id into v_acct from orders where order_no = p_order_no;
+      if v_acct is null then
+        select id into v_acct from accounts where device_id = v_device order by created_at desc limit 1;
+      end if;
       if v_acct is not null then
         update orders set status = 'paid', paid_at = coalesce(paid_at, now()), issued_code = 'acct:' || v_acct::text
         where order_no = p_order_no;
