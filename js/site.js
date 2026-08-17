@@ -715,7 +715,8 @@ async function generateAiReportV2(){
   if(!state.drawn.length) return;
   if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
     if(!getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
-    await refreshAccount();   // 先同步服务器上的最新额度，避免缓存过期误判
+    await ensureEntitlementMerged();   // 先合并设备VIP权益
+    await refreshAccount();   // 再同步服务器上的最新额度，避免缓存过期误判
     if(getCredits()<1){ openMemberBilling(); showToast("深度解析额度已用完：邀请好友注册即可获得"); return; }
   }
   if(!aiApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
@@ -817,7 +818,12 @@ function ensureEntitlementMerged(){
       }
       return r;
     })
-    .catch(()=>null)
+    .catch(e=>{
+      if(e && /merge_device_entitlement/.test(String(e.message||""))){
+        showToast("检测到数据库缺少新函数：请先在 Supabase 重跑最新 schema.sql");
+      }
+      return null;
+    })
     .finally(()=>{ entMergedPending=null; });
   return entMergedPending;
 }
@@ -1007,6 +1013,7 @@ function openAccount(){
 async function openAccountReal(){
   const content=$("toolContent"), token=getSession();
   if(!token){ renderAuthForm(content); return; }
+  await ensureEntitlementMerged();   // 先合并设备VIP权益，再取真实余额
   await refreshAccount();   // 打开账户页先同步服务器上的真实余额（含刚开通的VIP/管理员调整）
   const acc=readCachedAccount();
   const initials=(acc?.nickname||acc?.username||"星").slice(0,1);
