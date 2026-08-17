@@ -208,6 +208,11 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
 html[data-numstyle="hide"] .card-face .num,
 html[data-numstyle="hide"] .card-face .poker-corner{display:none!important}
 html[data-numstyle="poker"] .card-face .num{display:none!important}
+/* 牌背左上角数字角标（扑克模式显示，隐藏模式跟随隐藏） */
+.card-back .back-num{position:absolute;top:8px;left:9px;z-index:3;pointer-events:none;
+  font-family:var(--serif);font-size:15px;font-weight:700;letter-spacing:.02em;
+  color:rgba(232,207,143,.9);text-shadow:0 0 8px rgba(201,169,87,.45),0 0 2px rgba(0,0,0,.6)}
+html[data-numstyle="hide"] .card-back .back-num{display:none!important}
 .pos-tag{position:absolute;left:50%;transform:translateX(-50%);bottom:-30px;white-space:nowrap;
   font-size:11px;letter-spacing:.22em;color:var(--gold-dim);text-align:center;width:max-content}
 .draw-card.flipped .pos-tag{color:var(--gold-hi)}
@@ -579,7 +584,7 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
       <button class="btn ghost" id="btnAiReport">AI 深度解读</button>
       <button class="btn primary" id="btnPrint">打印 / 保存报告</button>
     </div>
-    <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，不构成专业建议，请理性看待<br>它给不了你答案，却能陪你照见内心 —— 选择权永远在你<br><span style="opacity:.45">v1.4</span></p>
+    <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，不构成专业建议，请理性看待<br>它给不了你答案，却能陪你照见内心 —— 选择权永远在你<br><span style="opacity:.45">v1.5</span></p>
   </section>
 </div>
 
@@ -898,6 +903,7 @@ function renderFan(){
     c.dataset.i = i;
     const back = document.createElement("div");
     back.className = "card-back";
+    back.innerHTML = `<span class="back-num">${d[2]}</span>`;
     c.appendChild(back);
     c.onclick = () => pickCard(i, c);
     zone.appendChild(c);
@@ -1041,6 +1047,7 @@ function landCard(slotWrap, card){
   inner.className = "card3d";
   const back = document.createElement("div");
   back.className = "card-back";
+  back.innerHTML = `<span class="back-num">${card[2]}</span>`;
   const face = document.createElement("div");
   face.className = "card-face" + (card.reversed ? " rev" : "");
   const isMajor = card[3] === "大";
