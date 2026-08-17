@@ -32,7 +32,11 @@
 3. 等 1-2 分钟项目建好，左侧菜单点 **SQL Editor** → **New query**
 4. 把仓库里 `supabase/schema.sql` 的全部内容粘贴进去 → **Run**
    看到 "Success. No rows returned" 就成功了
-5. 点左侧 **Table Editor**，确认能看到这些表：`settings` `vip_codes` `orders` `referrers` `rebates` **`accounts` `sessions`**
+5. 点左侧 **Table Editor**，确认能看到这些表：`settings` `vip_codes` `orders` `referrers` `rebates` **`accounts` `sessions` `readings` `credit_ledger` `admin_logs`**
+
+> 第二阶段（v2.0）新增：**账号找回**（绑定邮箱 / 忘记密码 / 改密后其他设备退出）、**占卜记录跟账号**（换手机可见，可收藏/删除/分享）、**额度账本**（每笔来源：注册/邀请/后台/购买/AI/退款）、**管理员操作日志**（谁调了额度、谁标了支付、谁封号、谁改配置）。
+>
+> ⚠️ 找回码说明：本阶段**未接入邮件服务**，忘记密码时找回码会直接显示在申请页面上（需知道用户名+绑定邮箱才能申请）。这适合小站；要更安全可后续接 Resend 邮件服务。
 
 > 账号系统说明：`accounts` 表保存用户名 + bcrypt 密码（绝不存明文）、每个账号的专属邀请码、
 > 深度解析额度（服务端记账，跟账号走，换设备登录依然可用）；`sessions` 保存登录会话令牌（有效期 30 天）。

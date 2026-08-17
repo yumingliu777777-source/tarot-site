@@ -404,7 +404,7 @@ const ELEM_DESC = {
   "星币":"土元素厚重，现实基础与物质条件决定成败，请务实推进。"
 };
 
-$("btnReport").onclick = () => { track("generate_report", { spread: state.spread, cards: state.drawn.length }); goStage(4); renderReport(); saveReading(); };
+$("btnReport").onclick = () => { track("generate_report", { spread: state.spread, cards: state.drawn.length }); goStage(4); renderReport(); saveReading(); if(sbConfigured() && getSession()) saveReadingToServer(); };
 $("btnReportRedo").onclick = $("btnRedo").onclick = resetAll;
 $("btnPrint").onclick = () => window.print();
 $("btnCopyShare").onclick = copyShareLink;
@@ -629,9 +629,12 @@ function openModal(kind){
     const card=Object.assign([...cardByName(entry.name)],{reversed:entry.reversed}); const meaning=card.reversed?card[6]:card[5];
     content.innerHTML=`<h2 class="modal-title" id="toolTitle">每日一签</h2><p class="modal-sub">${today} · 每天一张牌，留下一条与自己对话的线索。</p><div class="daily-card"><div class="thumb ${card.reversed?"rev":""}"><div class="poker-corner tl"><span class="pv">${cardNumber(card)}</span>${card[3]==="大"?"":`<span class="ps">${SUIT_GLYPH[card[3]]}</span>`}</div><div class="poker-corner br"><span class="pv">${cardNumber(card)}</span>${card[3]==="大"?"":`<span class="ps">${SUIT_GLYPH[card[3]]}</span>`}</div><div class="suit">${card[3]==="大"?"":SUIT_GLYPH[card[3]]}</div><div class="glyph">${card[3]==="大"?MAJOR_GLYPH[card[2]]:SUIT_SVG[card[3]]}</div><div class="tname">${card[0]}</div></div><div><h3>${card[0]} · ${card.reversed?"逆位":"正位"}</h3><div class="kws">${card[4].map(escapeHtml).join(" · ")}</div><p>${meaning}</p></div></div>`;
   } else if(kind === "history"){
-    const reports=safeRead(HISTORY_KEY), daily=safeRead(DAILY_KEY).map(item=>({spread:"每日一签",at:item.day,cards:[item],question:"每日一签"})); const items=[...reports,...daily].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
-    content.innerHTML=`<h2 class="modal-title" id="toolTitle">抽牌历史</h2><p class="modal-sub">记录保存在当前浏览器。报告最多保留 80 次，每日一签最多保留一年。</p><div class="history-list">${items.length?items.map((item,index)=>`<button class="history-item" data-history="${index}"><time>${String(item.at).slice(0,10)}</time><div><h4>${escapeHtml(item.spread || "塔罗报告")}</h4><p>${item.cards.map(card=>escapeHtml(card.name)).join(" · ")}</p></div><span>查看</span></button>`).join(""):`<p class="modal-sub">还没有记录。完成一次占卜或抽取每日一签后，它会出现在这里。</p>`}</div>`;
-    content.querySelectorAll("[data-history]").forEach(button=>button.onclick=()=>{ const item=items[Number(button.dataset.history)]; if(item.spread==="每日一签"){openModal("daily"); return;} if(payloadToState(item)){closeModal();goStage(4);renderReport();} });
+    if(sbConfigured() && getSession()){ openServerHistory(content); }
+    else{
+      const reports=safeRead(HISTORY_KEY), daily=safeRead(DAILY_KEY).map(item=>({spread:"每日一签",at:item.day,cards:[item],question:"每日一签"})); const items=[...reports,...daily].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+      content.innerHTML=`<h2 class="modal-title" id="toolTitle">抽牌历史</h2><p class="modal-sub">记录保存在当前浏览器。报告最多保留 80 次，每日一签最多保留一年。</p><div class="history-list">${items.length?items.map((item,index)=>`<button class="history-item" data-history="${index}"><time>${String(item.at).slice(0,10)}</time><div><h4>${escapeHtml(item.spread || "塔罗报告")}</h4><p>${item.cards.map(card=>escapeHtml(card.name)).join(" · ")}</p></div><span>查看</span></button>`).join(""):`<p class="modal-sub">还没有记录。完成一次占卜或抽取每日一签后，它会出现在这里。</p>`}</div>`;
+      content.querySelectorAll("[data-history]").forEach(button=>button.onclick=()=>{ const item=items[Number(button.dataset.history)]; if(item.spread==="每日一签"){openModal("daily"); return;} if(payloadToState(item)){closeModal();goStage(4);renderReport();} });
+    }
   } else if(kind === "dict") {
     content.innerHTML=`<h2 class="modal-title" id="toolTitle">牌意词典</h2><p class="modal-sub">完整收录 78 张塔罗牌的正位、逆位与关键词，可按名称、英文或关键词搜索。</p><div class="dict-toolbar"><input class="dict-search" id="dictSearch" placeholder="搜索牌名、英文名或关键词"><select class="dict-filter" id="dictFilter"><option value="">全部牌组</option><option value="大">大阿尔卡那</option><option value="权杖">权杖</option><option value="圣杯">圣杯</option><option value="宝剑">宝剑</option><option value="星币">星币</option></select></div><div class="dict-grid" id="dictGrid"></div>`;
     const renderDict=()=>{ const term=$("dictSearch").value.trim().toLowerCase(), suit=$("dictFilter").value; const cards=DECK.filter(card=>{const text=[card[0],card[1],card[3],...card[4]].join(" ").toLowerCase();return (!term||text.includes(term))&&(!suit||card[3]===suit);}); $("dictGrid").innerHTML=cards.map(card=>`<article class="dict-item"><h4>${card[0]}</h4><div class="en">${card[1]} · ${card[3]==="大"?"大阿尔卡那":card[3]}</div><div class="kws">${card[4].map(escapeHtml).join(" · ")}</div><p><b>正位：</b>${card[5]}</p><p><b>逆位：</b>${card[6]}</p></article>`).join("")||"<p class='modal-sub'>没有匹配的牌，请换个关键词试试。</p>"; };
@@ -640,6 +643,74 @@ function openModal(kind){
   $("toolModal").classList.remove("hidden");
 }
 function closeModal(){ $("toolModal").classList.add("hidden"); }
+/* ══════════ 占卜记录：跟账号走 ══════════ */
+let lastReadingId=null;
+function openServerHistory(content){
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">抽牌历史</h2><p class="modal-sub">记录已同步到账号，换手机登录后依然可见。支持收藏、分享、删除。</p><div class="history-list" id="srvHistory">加载中…</div>`;
+  const list=$("srvHistory");
+  sbRpc("my_readings",{p_token:getSession(),p_fav_only:false}).then(r=>{
+    const rows=(r&&r.list)||[];
+    if(!rows.length){ list.innerHTML=`<p class="modal-sub">还没有记录。完成一次占卜后，它会自动同步到你的账号。</p>`; return; }
+    list.innerHTML=rows.map(item=>{
+      const names=(item.cards||[]).map(c=>escapeHtml(c.name)).join(" · ");
+      return `<div class="history-item" style="display:block;text-align:left;padding:12px;border:1px solid var(--line);border-radius:4px;background:var(--panel)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <h4 style="color:var(--gold-hi);font-family:var(--serif);font-size:14px">${escapeHtml(item.spread||"塔罗报告")}${item.favorite?' ★':''}${item.has_ai?' <span style="color:var(--ok);font-size:10px">AI</span>':''}</h4>
+          <time style="color:var(--muted);font-size:11px">${String(item.created_at||"").slice(0,16).replace("T"," ")}</time>
+        </div>
+        <p style="color:var(--muted);font-size:12px;margin:6px 0 10px">${names}</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost" data-rv="${item.id}">重新查看</button>
+          <button class="btn ghost" data-fav="${item.id}" data-f="${item.favorite?'1':'0'}">${item.favorite?"取消收藏":"收藏"}</button>
+          <button class="btn ghost" data-share="${item.id}">分享</button>
+          <button class="btn ghost danger" data-del="${item.id}">删除</button>
+        </div>
+      </div>`;
+    }).join("");
+    list.querySelectorAll("[data-rv]").forEach(b=>b.onclick=()=>openReadingById(b.dataset.rv));
+    list.querySelectorAll("[data-fav]").forEach(b=>b.onclick=async()=>{
+      const fav=b.dataset.f!=="1";
+      try{ await sbRpc("toggle_favorite",{p_token:getSession(),p_id:b.dataset.fav,p_fav:fav}); showToast(fav?"已收藏":"已取消收藏"); openServerHistory(content); }catch(e){ showToast(e.message); }
+    });
+    list.querySelectorAll("[data-share]").forEach(b=>b.onclick=()=>shareReadingById(b.dataset.share));
+    list.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
+      if(!confirm("确认删除这条占卜记录？")) return;
+      try{ await sbRpc("delete_reading",{p_token:getSession(),p_id:b.dataset.del}); showToast("已删除"); openServerHistory(content); }catch(e){ showToast(e.message); }
+    });
+  }).catch(()=>{ list.innerHTML=`<p class="modal-sub">加载失败，请稍后重试。</p>`; });
+}
+async function openReadingById(id){
+  try{
+    const r=await sbRpc("get_reading",{p_token:getSession(),p_id:id});
+    if(!r||!r.ok) throw new Error(r?.reason==="not_found"?"记录不存在":"加载失败");
+    const payload={v:1,spread:r.spread,question:r.question||"",at:r.created_at,cards:(r.cards||[]).map(c=>({name:c.name,reversed:!!c.reversed}))};
+    if(payloadToState(payload)){
+      closeModal(); goStage(4); renderReport();
+      if(r.ai_report) attachAiText(r.ai_report);
+      lastReadingId=id;
+    }
+  }catch(e){ showToast(e.message); }
+}
+async function shareReadingById(id){
+  try{
+    const r=await sbRpc("get_reading",{p_token:getSession(),p_id:id});
+    if(!r||!r.ok) throw new Error("加载失败");
+    const payload={v:1,spread:r.spread,question:r.question||"",at:r.created_at,cards:(r.cards||[]).map(c=>({name:c.name,reversed:!!c.reversed}))};
+    copyText(`${location.href.split("#")[0]}#r=${encodePayload(payload)}`).then(()=>showToast("分享链接已复制")).catch(()=>showToast("复制失败"));
+  }catch(e){ showToast(e.message); }
+}
+function attachAiText(text){
+  const root=$("report"); let panel=$("aiAnalysis");
+  if(!panel){ panel=document.createElement("section"); panel.id="aiAnalysis"; panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis"></div>'; root.appendChild(panel); }
+  const output=panel.querySelector(".api-analysis"); output.className="api-analysis"; output.textContent=text||"";
+}
+async function saveReadingToServer(){
+  try{
+    const cards=state.drawn.map(d=>({name:d[0],reversed:!!d.reversed}));
+    const r=await sbRpc("save_reading",{p_token:getSession(),p_spread:state.spread,p_question:state.question||"",p_cards:cards,p_report_html:null,p_ai_report:null});
+    if(r&&r.ok) lastReadingId=r.id;
+  }catch(e){ /* 静默，不影响占卜流程 */ }
+}
 async function generateAiReportV2(){
   if(!state.drawn.length) return;
   if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
@@ -658,6 +729,7 @@ async function generateAiReportV2(){
     output.textContent=data.text; output.className="api-analysis";
     await refreshAccount();   // 同步服务端扣减后的余额
     updateMemberBadge();
+    if(lastReadingId) sbRpc("update_ai_report",{p_token:getSession(),p_id:lastReadingId,p_ai:data.text}).catch(()=>{});
     if(AI_REPORT_NEEDS_MEMBER && sbConfigured()) showToast(`已消耗 1 次深度解析，剩余 ${getCredits()} 次`);
   }catch(error){
     output.className="api-analysis";
@@ -757,6 +829,7 @@ function renderGateForm(){
       <label>密码<input id="gPwd" type="password" autocomplete="current-password" placeholder="至少 6 位"></label>
       <div id="gPwd2" class="hidden"><label>确认密码<input id="gPwd2Input" type="password" autocomplete="new-password"></label></div>
       <div class="btn-row"><button class="btn primary" id="gSubmit" type="submit" style="width:100%">登 录</button></div>
+      <p style="text-align:center;margin-top:12px"><button type="button" class="btn ghost" id="gForgot" style="border:0;background:none;padding:4px;font-size:12px;color:var(--muted)">忘记密码？</button></p>
     </form>`;
   let mode="login";
   const setMode=m=>{
@@ -770,6 +843,8 @@ function renderGateForm(){
   $("gTabLogin").onclick=()=>setMode("login");
   $("gTabReg").onclick=()=>setMode("register");
   setMode(ref?"register":"login");
+  const forgotBtn=$("gForgot");
+  if(forgotBtn) forgotBtn.onclick=renderForgotGate;
   $("gForm").onsubmit=async e=>{
     e.preventDefault();
     const user=$("gUser").value.trim(), pwd=$("gPwd").value, btn=$("gSubmit");
@@ -795,6 +870,55 @@ function renderGateForm(){
       showToast(err.message||"操作失败，请稍后再试");
       btn.disabled=false; btn.textContent=mode==="login"?"登 录":"注册并领取新人礼";
     }
+  };
+}
+/* 忘记密码：用户名+邮箱匹配 → 页面显示找回码 → 用找回码重置（所有设备退出） */
+function renderForgotGate(){
+  const content=$("gateContent");
+  content.innerHTML=`
+    <p class="gate-sub">输入注册时的用户名和绑定邮箱，获取找回码重置密码（30 分钟内有效）</p>
+    <form class="api-form" id="gForgotForm">
+      <label>用户名<input id="gfUser" maxlength="20"></label>
+      <label>绑定邮箱<input id="gfEmail" type="email"></label>
+      <div class="btn-row"><button class="btn primary" id="gfBtn1" type="submit" style="width:100%">获取找回码</button></div>
+    </form>
+    <div id="gfStep2" class="hidden">
+      <form class="api-form" id="gResetForm" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+        <label>找回码<input id="gfCode" maxlength="6" placeholder="6 位字母数字"></label>
+        <label>新密码<input id="gfPwd" type="password" placeholder="至少 6 位"></label>
+        <label>确认新密码<input id="gfPwd2" type="password"></label>
+        <div class="btn-row"><button class="btn primary" id="gfBtn2" type="submit" style="width:100%">重置密码</button></div>
+      </form>
+    </div>
+    <p style="text-align:center;margin-top:12px"><button type="button" class="btn ghost" id="gfBack" style="border:0;background:none;padding:4px;font-size:12px;color:var(--muted)">← 返回登录</button></p>`;
+  $("gfBack").onclick=()=>showAuthGate();
+  $("gForgotForm").onsubmit=async e=>{
+    e.preventDefault();
+    const btn=$("gfBtn1"); btn.disabled=true; btn.textContent="请稍候…";
+    try{
+      const r=await sbRpc("request_password_reset",{p_username:$("gfUser").value.trim(),p_email:$("gfEmail").value.trim()});
+      if(!(r&&r.ok)) throw new Error("获取失败");
+      $("gfStep2").classList.remove("hidden");
+      btn.textContent="找回码已生成，请看下方";
+      btn.disabled=false;
+      const hint=document.createElement("p");
+      hint.style.cssText="color:var(--gold);font-size:15px;text-align:center;margin:12px 0;letter-spacing:.25em;font-weight:700";
+      hint.textContent="🔑 找回码：" + r.code;
+      const step2=$("gfStep2");
+      step2.insertBefore(hint, step2.firstChild);
+      showToast("找回码已生成（30 分钟内有效）");
+    }catch(err){ showToast(err.message); btn.disabled=false; btn.textContent="获取找回码"; }
+  };
+  $("gResetForm").onsubmit=async e=>{
+    e.preventDefault();
+    if($("gfPwd").value!==$("gfPwd2").value){ showToast("两次输入的新密码不一致"); return; }
+    const btn=$("gfBtn2"); btn.disabled=true; btn.textContent="请稍候…";
+    try{
+      const r=await sbRpc("reset_password",{p_username:$("gfUser").value.trim(),p_code:$("gfCode").value.trim(),p_new:$("gfPwd").value});
+      if(!(r&&r.ok)) throw new Error("重置失败");
+      showToast("密码已重置，所有设备已退出，请重新登录");
+      showAuthGate();
+    }catch(err){ showToast(err.message); btn.disabled=false; btn.textContent="重置密码"; }
   };
 }
 /* 深度解析额度：登录用户看账号余额（服务端），未登录看本机设备权益 */
@@ -865,13 +989,25 @@ function openAccountReal(){
   if(!token){ renderAuthForm(content); return; }
   const acc=readCachedAccount();
   const initials=(acc?.nickname||acc?.username||"星").slice(0,1);
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(acc?.nickname||acc?.username||"星夜旅人")}</h3><p>@${escapeHtml(acc?.username||"")} · 额度跟账号走，换设备登录后依然可用</p></div></section><div class="benefit-grid"><div class="benefit"><strong id="statCredits">${acc?.credits||0}</strong><span>深度解析次数</span></div><div class="benefit"><strong id="statNew">…</strong><span>已拉新人数</span></div><div class="benefit"><strong>${acc?.createdAt?String(acc.createdAt).slice(0,10):"--"}</strong><span>注册日期</span></div></div><section class="referral-box"><h3>我的专属邀请链接</h3><p>好友用此链接注册，你和 TA 各 +1 次免费深度解析，多邀多得。</p><div class="referral-link"><input id="promoLink" readonly value="${promoLinkFor(acc?.ref_code||"")}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></section><div class="btn-row">${acc?.is_admin?'<button class="btn primary" id="btnAdmin" style="padding:10px 26px;font-size:13px">⚙ 管理后台</button>':""}<button class="btn ghost" id="btnEditProfile">修改昵称</button><button class="btn ghost" id="btnChangePwd">修改密码</button><button class="btn ghost" id="btnLogout">退出登录</button></div><div id="editPanel"></div>`;
+  const emailBox=acc?.email
+    ? `<section class="referral-box"><h3>绑定邮箱</h3><p>${escapeHtml(acc.email)}${acc.email_verified?' <span class="st-paid">已验证</span>':' <span class="muted">（未验证）</span>'} · 用于忘记密码找回</p></section>`
+    : `<section class="referral-box"><h3>绑定邮箱</h3><p>用于忘记密码找回。未接邮件服务，找回码会直接显示在页面上。</p><div class="code-row"><input class="member-input" id="bindEmail" placeholder="name@example.com"><button class="btn primary" id="btnBindEmail">绑定</button></div></section>`;
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(acc?.nickname||acc?.username||"星夜旅人")}</h3><p>@${escapeHtml(acc?.username||"")} · 额度跟账号走，换设备登录后依然可用</p></div></section><div class="benefit-grid"><div class="benefit"><strong id="statCredits">${acc?.credits||0}</strong><span>深度解析次数</span></div><div class="benefit"><strong id="statNew">…</strong><span>已拉新人数</span></div><div class="benefit"><strong>${acc?.createdAt?String(acc.createdAt).slice(0,10):"--"}</strong><span>注册日期</span></div></div>${emailBox}<section class="referral-box"><h3>我的专属邀请链接</h3><p>好友用此链接注册，你和 TA 各 +1 次免费深度解析，多邀多得。</p><div class="referral-link"><input id="promoLink" readonly value="${promoLinkFor(acc?.ref_code||"")}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></section><section class="referral-box"><h3>额度明细</h3><div class="order-list" id="ledgerList">加载中…</div></section><div class="btn-row">${acc?.is_admin?'<button class="btn primary" id="btnAdmin" style="padding:10px 26px;font-size:13px">⚙ 管理后台</button>':""}<button class="btn ghost" id="btnEditProfile">修改昵称</button><button class="btn ghost" id="btnChangePwd">修改密码</button><button class="btn ghost" id="btnLogout">退出登录</button></div><div id="editPanel"></div>`;
   $("btnCopyPromo").onclick=()=>copyText(promoLinkFor(acc?.ref_code||"")).then(()=>showToast("邀请链接已复制"));
   if(acc?.is_admin && $("btnAdmin")) $("btnAdmin").onclick=openAdmin;
+  const bindBtn=$("btnBindEmail");
+  if(bindBtn) bindBtn.onclick=async()=>{ try{ const r=await sbRpc("bind_email",{p_token:token,p_email:$("bindEmail").value.trim()}); if(r&&r.ok){ showToast("邮箱已绑定"); await refreshAccount(); openAccountReal(); } }catch(e){ showToast(e.message); } };
   $("btnLogout").onclick=async()=>{ try{ await sbRpc("logout_account",{p_token:token}); }catch(e){} clearSession(); showToast("已退出登录"); updateMemberBadge(); updateNewbieBanner(); openAccountReal(); showAuthGate(); };
   $("btnEditProfile").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="nickForm"><label>新昵称<input id="nickInput" maxlength="20" value="${escapeHtml(acc?.nickname||"")}"></label><div class="btn-row"><button class="btn primary" type="submit">保存</button></div></form>`; $("nickForm").onsubmit=async e=>{e.preventDefault(); try{ const r=await sbRpc("update_profile",{p_token:token,p_nickname:$("nickInput").value.trim()}); if(r&&r.ok){ await refreshAccount(); showToast("昵称已更新"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };
-  $("btnChangePwd").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="pwdForm"><label>原密码<input id="pwdOld" type="password" autocomplete="current-password"></label><label>新密码（至少6位）<input id="pwdNew" type="password" autocomplete="new-password"></label><label>确认新密码<input id="pwdNew2" type="password" autocomplete="new-password"></label><div class="btn-row"><button class="btn primary" type="submit">修改</button></div></form>`; $("pwdForm").onsubmit=async e=>{e.preventDefault(); if($("pwdNew").value!==$("pwdNew2").value){showToast("两次输入的新密码不一致");return;} try{ const r=await sbRpc("change_password",{p_token:token,p_old:$("pwdOld").value,p_new:$("pwdNew").value}); if(r&&r.ok){ showToast("密码已修改"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };
+  $("btnChangePwd").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="pwdForm"><label>原密码<input id="pwdOld" type="password" autocomplete="current-password"></label><label>新密码（至少6位）<input id="pwdNew" type="password" autocomplete="new-password"></label><label>确认新密码<input id="pwdNew2" type="password" autocomplete="new-password"></label><div class="btn-row"><button class="btn primary" type="submit">修改</button></div></form>`; $("pwdForm").onsubmit=async e=>{e.preventDefault(); if($("pwdNew").value!==$("pwdNew2").value){showToast("两次输入的新密码不一致");return;} try{ const r=await sbRpc("change_password",{p_token:token,p_old:$("pwdOld").value,p_new:$("pwdNew").value}); if(r&&r.ok){ showToast("密码已修改，其他设备已退出登录"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };
   sbRpc("my_referrals",{p_token:token}).then(stats=>{ if(stats&&stats.ok){ const el=$("statNew"); if(el) el.textContent=stats.new_users||0; } }).catch(()=>{ const el=$("statNew"); if(el) el.textContent="—"; });
+  sbRpc("my_ledger",{p_token:token}).then(r=>{
+    const list=$("ledgerList"); if(!list) return;
+    const rows=(r&&r.list)||[];
+    if(!rows.length){ list.innerHTML=`<p class="modal-sub">暂无额度变动记录。</p>`; return; }
+    const REASON={register:"注册奖励",invite:"邀请奖励",admin:"后台调整",purchase:"购买会员",ai:"AI 消耗",refund:"退款"};
+    list.innerHTML=rows.map(x=>`<div class="order-item"><div><b style="color:${x.delta>=0?'var(--ok)':'#d98a7a'}">${x.delta>0?"+":""}${x.delta} 次</b> · ${REASON[x.reason]||x.reason}${x.note?`<div class="od">${escapeHtml(x.note)}</div>`:""}</div><span class="od">${String(x.created_at||"").slice(0,16).replace("T"," ")} · 余额 ${x.balance_after}</span></div>`).join("");
+  }).catch(()=>{ const l=$("ledgerList"); if(l) l.innerHTML=`<p class="modal-sub">加载失败</p>`; });
 }
 /* 登录 / 注册表单 */
 function renderAuthForm(content){
@@ -1147,6 +1283,7 @@ function renderAdmin(){
     <button class="auth-tab" data-tab="rebates">返利</button>
     <button class="auth-tab" data-tab="codes">卡密</button>
     <button class="auth-tab" data-tab="settings">设置</button>
+    <button class="auth-tab" data-tab="logs">日志</button>
   </div>
   <div id="adminBody"><div class="pay-wait"><div class="spinner"></div>加载中…</div></div>
   <p class="admin-note">提示：标记订单「已支付」会自动发卡密并生成返利台账；用户额度可随时手动调整。</p>`;
@@ -1171,8 +1308,9 @@ async function loadAdminTab(){
     }else if(adminTab==="users"){
       const r=await sbRpc("admin_list_accounts",{p_token:token});
       if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
-      const rows=(r.list||[]).map(u=>`<div class="admin-row"><div><b>${escapeHtml(u.nickname)}</b> <span class="muted">@${escapeHtml(u.username)}</span>${u.is_admin?' <span class="st-paid">管理员</span>':''}${u.is_banned?' <span style="color:#d98a7a">已封禁</span>':''}<div class="od">邀请码 ${escapeHtml(u.ref_code)} · 拉新 ${u.referred||0} 人 · ${String(u.created_at||"").slice(0,10)}${u.referrer?` · 经 ${escapeHtml(u.referrer)} 邀请`:""}${u.device_id?`<br>设备 ${escapeHtml(String(u.device_id).slice(0,10))}${u.client_ip?` · IP ${escapeHtml(u.client_ip)}`:""}`:""}</div></div><div class="admin-actions"><span class="st-paid">${u.credits} 次</span><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="1">+1</button><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="10">+10</button><button class="btn ghost danger" data-cred="${escapeHtml(u.username)}" data-delta="-1">-1</button>${u.is_admin?"":(u.is_banned?`<button class="btn ghost" data-ban="${escapeHtml(u.username)}" data-banned="false">解封</button>`:`<button class="btn ghost danger" data-ban="${escapeHtml(u.username)}" data-banned="true">封禁</button>`)}</div></div>`).join("");
+      const rows=(r.list||[]).map(u=>`<div class="admin-row"><div><b>${escapeHtml(u.nickname)}</b> <span class="muted">@${escapeHtml(u.username)}</span>${u.is_admin?' <span class="st-paid">管理员</span>':''}${u.is_banned?' <span style="color:#d98a7a">已封禁</span>':''}<div class="od">邀请码 ${escapeHtml(u.ref_code)} · 拉新 ${u.referred||0} 人 · ${String(u.created_at||"").slice(0,10)}${u.referrer?` · 经 ${escapeHtml(u.referrer)} 邀请`:""}${u.device_id?`<br>设备 ${escapeHtml(String(u.device_id).slice(0,10))}${u.client_ip?` · IP ${escapeHtml(u.client_ip)}`:""}`:""}</div></div><div class="admin-actions"><span class="st-paid">${u.credits} 次</span><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="1">+1</button><button class="btn ghost" data-cred="${escapeHtml(u.username)}" data-delta="10">+10</button><button class="btn ghost danger" data-cred="${escapeHtml(u.username)}" data-delta="-1">-1</button><button class="btn ghost" data-ledger="${escapeHtml(u.username)}">明细</button>${u.is_admin?"":(u.is_banned?`<button class="btn ghost" data-ban="${escapeHtml(u.username)}" data-banned="false">解封</button>`:`<button class="btn ghost danger" data-ban="${escapeHtml(u.username)}" data-banned="true">封禁</button>`)}</div></div>`).join("");
       body.innerHTML=`<div class="admin-list">${rows||'<p class="modal-sub">暂无用户</p>'}</div>`;
+      body.querySelectorAll("[data-ledger]").forEach(btn=>btn.onclick=()=>showUserLedger(btn.dataset.ledger));
       body.querySelectorAll("[data-cred]").forEach(btn=>btn.onclick=async()=>{
         const uname=btn.dataset.cred, delta=Number(btn.dataset.delta);
         if(delta<0 && !confirm(`确认给 @${uname} 扣减 ${-delta} 次深度解析额度？`)) return;
@@ -1256,10 +1394,29 @@ async function loadAdminTab(){
           showToast("设置已保存");
         }catch(err){ showToast(err.message); }
       };
+    }else if(adminTab==="logs"){
+      const r=await sbRpc("admin_list_logs",{p_token:token});
+      if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
+      const ACT={set_credits:"调整额度",order_paid:"标记订单已支付",order_cancelled:"退款/取消订单",ban:"封禁账号",unban:"解封账号",set_setting:"修改配置",rebate_status:"结算返利"};
+      const rows=(r.list||[]).map(x=>`<div class="admin-row"><div><b>${ACT[x.action]||x.action}</b> · ${escapeHtml(x.target||"")}<div class="od">操作人 ${escapeHtml(x.admin_username)}${x.detail?` · ${escapeHtml(x.detail)}`:""} · ${String(x.created_at||"").slice(0,16).replace("T"," ")}</div></div></div>`).join("");
+      body.innerHTML=`<div class="admin-list">${rows||'<p class="modal-sub">暂无操作记录</p>'}</div>`;
     }
   }catch(e){
     body.innerHTML=`<p style="color:#e08a8a;font-size:12px;line-height:1.8">${escapeHtml(e.message)}</p>`;
   }
+}
+/* 管理员查看某用户额度账本 */
+async function showUserLedger(username){
+  const body=$("adminBody");
+  body.innerHTML=`<div class="pay-wait"><div class="spinner"></div>加载中…</div>`;
+  try{
+    const r=await sbRpc("admin_list_ledger",{p_token:getSession(),p_username:username});
+    if(!r||r.ok===false) throw new Error(r?.reason==="forbidden"?"无权限":"加载失败");
+    const REASON={register:"注册奖励",invite:"邀请奖励",admin:"后台调整",purchase:"购买会员",ai:"AI 消耗",refund:"退款"};
+    const rows=(r.list||[]).map(x=>`<div class="admin-row"><div><b style="color:${x.delta>=0?'var(--ok)':'#d98a7a'}">${x.delta>0?"+":""}${x.delta} 次</b> · ${REASON[x.reason]||x.reason}${x.note?`<div class="od">${escapeHtml(x.note)}</div>`:""}</div><span class="od">@${escapeHtml(x.username)} · 余额 ${x.balance_after} · ${String(x.created_at||"").slice(0,16).replace("T"," ")}</span></div>`).join("");
+    body.innerHTML=`<div class="btn-row" style="margin-bottom:10px"><button class="btn ghost" id="btnLedgerBack">← 返回用户列表</button></div><div class="admin-list">${rows||'<p class="modal-sub">该用户暂无额度变动</p>'}</div>`;
+    $("btnLedgerBack").onclick=()=>{ adminTab="users"; loadAdminTab(); };
+  }catch(e){ body.innerHTML=`<p style="color:#e08a8a;font-size:12px">${escapeHtml(e.message)}</p>`; }
 }
 
 function goHome(){

@@ -32,7 +32,7 @@ test("关键元素齐全", () => {
   });
 });
 test("页脚版本号存在", () => {
-  assert.ok(/v1\.\d+/.test(html), "页脚缺版本号");
+  assert.ok(/v\d+\.\d+/.test(html), "页脚缺版本号");
 });
 test("GA4 统计脚本存在", () => {
   assert.ok(html.includes("googletagmanager.com/gtag"), "缺 GA4");

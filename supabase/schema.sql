@@ -12,6 +12,7 @@ create table if not exists schema_migrations (
   note text
 );
 insert into schema_migrations (version, note) values
+  ('4', '账号找回(邮箱绑定/忘记密码/改密踢设备) + 占卜记录跟账号 + 额度账本 + 管理员日志'),
   ('3', '账号系统 + 店主后台 + 防刷 + 登录墙 + 微信收款 + 拉新返利')
 on conflict (version) do nothing;
 
@@ -225,11 +226,12 @@ begin
   insert into accounts (username, nickname, password_hash, ref_code, referrer, credits, device_id, client_ip)
   values (v_username, v_nick, crypt(p_password, gen_salt('bf', 10)), v_code,
           case when v_ref_ok then v_ref else null end,
-          case when v_ref_ok then 1 else 0 end,
+          0,
           nullif(p_device,''), nullif(v_ip,''))
   returning id into v_id;
   if v_ref_ok then
-    update accounts set credits = credits + 1 where ref_code = v_ref;
+    perform add_credit(v_id, 1, 'register', '新人注册奖励');
+    perform add_credit((select id from accounts where ref_code = v_ref), 1, 'invite', '邀请 ' || v_username || ' 注册');
     v_credits := 1;
   end if;
   v_token := encode(gen_random_bytes(24), 'hex');
@@ -285,7 +287,8 @@ begin
   return json_build_object('ok', true, 'username', v_user.username, 'nickname', v_user.nickname,
                            'credits', v_user.credits, 'ref_code', v_user.ref_code,
                            'referrer', v_user.referrer, 'created_at', v_user.created_at,
-                           'is_admin', v_user.is_admin);
+                           'is_admin', v_user.is_admin, 'email', v_user.email,
+                           'email_verified', v_user.email_verified);
 end $$;
 
 -- 消耗 1 次深度解析（服务端扣减）
@@ -295,8 +298,8 @@ declare v_id uuid; v_left int;
 begin
   v_id := session_account(p_token);
   if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
-  update accounts set credits = credits - 1 where id = v_id and credits >= 1 returning credits into v_left;
-  if v_left is null then return json_build_object('ok', false, 'reason', 'no_credit'); end if;
+  v_left := add_credit(v_id, -1, 'ai', 'AI 深度解读消耗');
+  if v_left = -1 then return json_build_object('ok', false, 'reason', 'no_credit'); end if;
   return json_build_object('ok', true, 'credits_left', v_left);
 end $$;
 
@@ -336,6 +339,7 @@ begin
   select password_hash into v_hash from accounts where id = v_id;
   if v_hash is null or crypt(p_old, v_hash) <> v_hash then raise exception '原密码不正确'; end if;
   update accounts set password_hash = crypt(p_new, gen_salt('bf', 10)) where id = v_id;
+  delete from sessions where account_id = v_id and token <> p_token;   -- 其他设备强制退出
   return json_build_object('ok', true);
 end $$;
 
@@ -407,19 +411,23 @@ begin
   if p_banned then
     delete from sessions where account_id = (select id from accounts where username = lower(trim(p_username)));
   end if;
+  perform log_admin(v_id, case when p_banned then 'ban' else 'unban' end, p_username, '');
   return json_build_object('ok', true);
 end $$;
 
--- 调整用户额度（p_delta 可为负数，不会扣成负数）
+-- 调整用户额度（p_delta 可为负数；每笔写入额度账本并记录管理员日志）
 create or replace function admin_set_credits(p_token text, p_username text, p_delta int)
 returns json language plpgsql security definer set search_path = public as $$
-declare v_id uuid;
+declare v_id uuid; v_acct uuid; v_left int;
 begin
   v_id := admin_account(p_token);
   if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
-  update accounts set credits = greatest(0, credits + p_delta) where username = lower(trim(p_username));
-  if not found then return json_build_object('ok', false, 'reason', 'no_user'); end if;
-  return json_build_object('ok', true);
+  select id into v_acct from accounts where username = lower(trim(p_username));
+  if v_acct is null then return json_build_object('ok', false, 'reason', 'no_user'); end if;
+  v_left := add_credit(v_acct, p_delta, 'admin', '管理员手动调整');
+  if v_left = -1 then return json_build_object('ok', false, 'reason', 'insufficient'); end if;
+  perform log_admin(v_id, 'set_credits', p_username, '额度 ' || p_delta || ' → 余额 ' || v_left);
+  return json_build_object('ok', true, 'credits_left', v_left);
 end $$;
 
 -- 订单列表（p_status 传空 = 全部）
@@ -438,11 +446,12 @@ begin
   return json_build_object('ok', true, 'list', v);
 end $$;
 
--- 改订单状态：标记已支付时自动为买家设备发卡密（幂等，重复操作不重复发码），触发器自动生成返利
+-- 改订单状态：标记已支付时自动发放权益（有账号→额度入账本；无账号→设备卡密），退款自动撤销，全部记录管理员日志
 create or replace function admin_set_order_status(p_token text, p_order_no text, p_status text)
 returns json language plpgsql security definer set search_path = public as $$
 declare
   v_id uuid; v_cur text; v_plan text; v_device text; v_code text; v_days int;
+  v_acct uuid; v_plan_credits int;
 begin
   v_id := admin_account(p_token);
   if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
@@ -450,19 +459,42 @@ begin
   select status, plan, device_id into v_cur, v_plan, v_device from orders where order_no = p_order_no;
   if v_cur is null then return json_build_object('ok', false, 'reason', 'no_order'); end if;
   if v_cur = p_status then return json_build_object('ok', true); end if; -- 幂等
+  v_plan_credits := case when v_plan = 'single' then 1 when v_plan = 'light' then 10 when v_plan = 'plus' then 30 else 1 end;
   if p_status = 'paid' then
     if exists (select 1 from orders where order_no = p_order_no and issued_code is not null) then
       update orders set status = 'paid', paid_at = coalesce(paid_at, now()) where order_no = p_order_no;
     else
-      v_days := case when v_plan = 'single' then 7 else 30 end;
-      v_code := 'X' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 11));
-      update orders set status = 'paid', paid_at = coalesce(paid_at, now()), issued_code = v_code
-      where order_no = p_order_no;
-      insert into vip_codes (code, plan, status, used_by, activated_at, expires_at)
-      values (v_code, v_plan, 'used', v_device, now(), now() + v_days * interval '1 day');
+      -- 优先绑定账号发额度（购买入账本）；否则发设备卡密
+      select id into v_acct from accounts where device_id = v_device order by created_at desc limit 1;
+      if v_acct is not null then
+        update orders set status = 'paid', paid_at = coalesce(paid_at, now()), issued_code = 'acct:' || v_acct::text
+        where order_no = p_order_no;
+        perform add_credit(v_acct, v_plan_credits, 'purchase', '购买会员订单 ' || p_order_no);
+      else
+        v_days := case when v_plan = 'single' then 7 else 30 end;
+        v_code := 'X' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 11));
+        update orders set status = 'paid', paid_at = coalesce(paid_at, now()), issued_code = v_code
+        where order_no = p_order_no;
+        insert into vip_codes (code, plan, status, used_by, activated_at, expires_at)
+        values (v_code, v_plan, 'used', v_device, now(), now() + v_days * interval '1 day');
+      end if;
     end if;
+    perform log_admin(v_id, 'order_paid', p_order_no, '标记已支付');
+  elsif p_status = 'cancelled' and v_cur = 'paid' then
+    -- 退款：撤销账号额度（记 refund）或撤销卡密
+    select issued_code into v_code from orders where order_no = p_order_no;
+    if v_code is not null and v_code like 'acct:%' then
+      perform add_credit(substr(v_code, 6)::uuid, -v_plan_credits, 'refund', '退款订单 ' || p_order_no);
+      update orders set issued_code = null where order_no = p_order_no;
+    elsif v_code is not null then
+      update vip_codes set status = 'revoked' where code = v_code;
+      update orders set issued_code = null where order_no = p_order_no;
+    end if;
+    update orders set status = 'cancelled' where order_no = p_order_no;
+    perform log_admin(v_id, 'order_cancelled', p_order_no, '退款/取消');
   else
     update orders set status = p_status where order_no = p_order_no;
+    perform log_admin(v_id, 'order_cancelled', p_order_no, '状态改 ' || p_status);
   end if;
   return json_build_object('ok', true);
 end $$;
@@ -493,6 +525,7 @@ begin
   update rebates set status = p_status,
     settled_at = case when p_status in ('paid','skipped') then coalesce(settled_at, now()) else settled_at end
   where id = p_id;
+  perform log_admin(v_id, 'rebate_status', p_id::text, p_status);
   return json_build_object('ok', true);
 end $$;
 
@@ -517,6 +550,7 @@ begin
   if p_value !~ '^[0-9]+(\.[0-9]+)?$' then raise exception '请输入数字'; end if;
   insert into settings (key, value) values (p_key, p_value)
   on conflict (key) do update set value = excluded.value;
+  perform log_admin(v_id, 'set_setting', p_key, p_value);
   return json_build_object('ok', true);
 end $$;
 
@@ -771,3 +805,240 @@ revoke execute on function plan_price(text)        from public, anon, authentica
 revoke execute on function valid_referrer(text)    from public, anon, authenticated;
 revoke execute on function generate_codes(int,text) from public, anon, authenticated;
 revoke execute on function on_order_paid()         from public, anon, authenticated;
+
+-- ============================================================
+-- 第二阶段：账号找回 + 占卜记录 + 额度账本 + 管理员日志
+-- ============================================================
+
+-- ---------- 6. 账号找回：邮箱绑定 / 忘记密码 ----------
+alter table accounts add column if not exists email text;
+alter table accounts add column if not exists email_verified boolean not null default false;
+alter table accounts add column if not exists reset_token text;
+alter table accounts add column if not exists reset_expires timestamptz;
+create unique index if not exists idx_accounts_email on accounts(email) where email is not null;
+
+-- 绑定邮箱（可选；本阶段为自助绑定，未接邮件服务则标记"未验证"）
+create or replace function bind_email(p_token text, p_email text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_email text;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  v_email := lower(trim(coalesce(p_email,'')));
+  if v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception '邮箱格式不对'; end if;
+  if exists (select 1 from accounts where email = v_email and id <> v_id) then raise exception '该邮箱已被其他账号绑定'; end if;
+  update accounts set email = v_email, email_verified = false where id = v_id;
+  return json_build_object('ok', true, 'email', v_email);
+end $$;
+
+-- 申请找回码：用户名+邮箱必须匹配才返回一次性找回码（30 分钟有效）
+-- 说明：本阶段未接入邮件服务，找回码直接显示在申请页面上（如实告知）
+create or replace function request_password_reset(p_username text, p_email text)
+returns json language plpgsql security definer set search_path = public, extensions as $$
+declare v_user accounts%rowtype; v_code text;
+begin
+  select * into v_user from accounts
+    where username = lower(trim(p_username)) and lower(coalesce(email,'')) = lower(trim(coalesce(p_email,'')));
+  if v_user.id is null then raise exception '用户名与邮箱不匹配'; end if;
+  v_code := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+  update accounts set reset_token = v_code, reset_expires = now() + interval '30 minutes' where id = v_user.id;
+  return json_build_object('ok', true, 'code', v_code, 'expires_min', 30);
+end $$;
+
+-- 用找回码重置密码（重置后所有设备强制退出）
+create or replace function reset_password(p_username text, p_code text, p_new text)
+returns json language plpgsql security definer set search_path = public, extensions as $$
+declare v_id uuid;
+begin
+  if length(coalesce(p_new,'')) < 6 then raise exception '新密码至少 6 位'; end if;
+  select id into v_id from accounts
+    where username = lower(trim(p_username))
+      and reset_token = upper(trim(coalesce(p_code,'')))
+      and reset_expires > now();
+  if v_id is null then raise exception '找回码无效或已过期'; end if;
+  update accounts set password_hash = crypt(p_new, gen_salt('bf', 10)),
+    reset_token = null, reset_expires = null, failed_attempts = 0, locked_until = null
+  where id = v_id;
+  delete from sessions where account_id = v_id;
+  return json_build_object('ok', true);
+end $$;
+
+-- ---------- 7. 占卜记录：跟账号走，跨设备 ----------
+create table if not exists readings (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references accounts(id) on delete cascade,
+  spread text not null,
+  question text,
+  cards jsonb not null,              -- [{name, reversed}, ...]
+  report_html text,                  -- 免费报告快照（重新查看时原样展示）
+  ai_report text,                    -- AI 深度解读文本
+  favorite boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_readings_account on readings(account_id);
+alter table readings enable row level security;
+
+create or replace function save_reading(p_token text, p_spread text, p_question text, p_cards jsonb, p_report_html text, p_ai_report text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_rid uuid;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  insert into readings (account_id, spread, question, cards, report_html, ai_report)
+  values (v_id, p_spread, p_question, p_cards, p_report_html, p_ai_report)
+  returning id into v_rid;
+  return json_build_object('ok', true, 'id', v_rid);
+end $$;
+
+create or replace function my_readings(p_token text, p_fav_only boolean)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
+    select id, spread, question, cards, favorite,
+           (ai_report is not null and ai_report <> '') as has_ai, created_at
+    from readings
+    where account_id = v_id and (not coalesce(p_fav_only, false) or favorite)
+    limit 100
+  ) x;
+  return json_build_object('ok', true, 'list', v);
+end $$;
+
+create or replace function get_reading(p_token text, p_id uuid)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v readings%rowtype;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  select * into v from readings where id = p_id and account_id = v_id;
+  if v.id is null then return json_build_object('ok', false, 'reason', 'not_found'); end if;
+  return json_build_object('ok', true, 'spread', v.spread, 'question', v.question,
+                           'cards', v.cards, 'report_html', v.report_html,
+                           'ai_report', v.ai_report, 'created_at', v.created_at);
+end $$;
+
+create or replace function delete_reading(p_token text, p_id uuid)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  delete from readings where id = p_id and account_id = v_id;
+  return json_build_object('ok', true);
+end $$;
+
+create or replace function toggle_favorite(p_token text, p_id uuid, p_fav boolean)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  update readings set favorite = p_fav where id = p_id and account_id = v_id;
+  return json_build_object('ok', true);
+end $$;
+
+create or replace function update_ai_report(p_token text, p_id uuid, p_ai text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  update readings set ai_report = p_ai where id = p_id and account_id = v_id;
+  return json_build_object('ok', true);
+end $$;
+
+-- ---------- 8. 额度账本：每一笔加减都有记录 ----------
+create table if not exists credit_ledger (
+  id bigserial primary key,
+  account_id uuid not null references accounts(id) on delete cascade,
+  delta int not null,                -- 正=增加 负=消耗
+  reason text not null,              -- register / invite / admin / purchase / ai / refund
+  note text,
+  balance_after int not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_ledger_account on credit_ledger(account_id);
+alter table credit_ledger enable row level security;
+
+-- 内部：原子加/减额度并记账（余额不足拒绝负向操作），返回操作后余额，-1 表示失败
+create or replace function add_credit(p_account_id uuid, p_delta int, p_reason text, p_note text)
+returns int language plpgsql security definer set search_path = public as $$
+declare v_left int;
+begin
+  update accounts set credits = credits + p_delta
+  where id = p_account_id and (p_delta >= 0 or credits + p_delta >= 0)
+  returning credits into v_left;
+  if v_left is null then return -1; end if;
+  insert into credit_ledger (account_id, delta, reason, note, balance_after)
+  values (p_account_id, p_delta, coalesce(p_reason,'misc'), p_note, v_left);
+  return v_left;
+end $$;
+
+-- 我的额度明细
+create or replace function my_ledger(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
+    select delta, reason, note, balance_after, created_at
+    from credit_ledger where account_id = v_id
+    limit 100
+  ) x;
+  return json_build_object('ok', true, 'list', v);
+end $$;
+
+-- 管理员查任意用户账本（p_username 传空 = 全部）
+create or replace function admin_list_ledger(p_token text, p_username text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
+    select a.username, l.delta, l.reason, l.note, l.balance_after, l.created_at
+    from credit_ledger l join accounts a on a.id = l.account_id
+    where (coalesce(p_username,'') = '' or a.username = lower(trim(p_username)))
+    limit 200
+  ) x;
+  return json_build_object('ok', true, 'list', v);
+end $$;
+
+-- ---------- 9. 管理员操作日志 ----------
+create table if not exists admin_logs (
+  id bigserial primary key,
+  admin_username text not null,
+  action text not null,              -- set_credits / order_paid / order_cancelled / ban / unban / set_setting / rebate_status
+  target text,
+  detail text,
+  created_at timestamptz not null default now()
+);
+alter table admin_logs enable row level security;
+
+-- 内部：写日志
+create or replace function log_admin(p_admin_id uuid, p_action text, p_target text, p_detail text)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_name text;
+begin
+  select username into v_name from accounts where id = p_admin_id;
+  insert into admin_logs (admin_username, action, target, detail)
+  values (coalesce(v_name,'?'), p_action, p_target, p_detail);
+end $$;
+
+create or replace function admin_list_logs(p_token text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v json;
+begin
+  v_id := admin_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'forbidden'); end if;
+  select coalesce(json_agg(x order by created_at desc), '[]'::json) into v from (
+    select admin_username, action, target, detail, created_at from admin_logs limit 200
+  ) x;
+  return json_build_object('ok', true, 'list', v);
+end $$;
+
+revoke execute on function add_credit(uuid,int,text,text)   from public, anon, authenticated;
+revoke execute on function log_admin(uuid,text,text,text)    from public, anon, authenticated;

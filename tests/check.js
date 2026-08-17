@@ -29,7 +29,7 @@ const checks = [
   ["引用 js/deck.js", html.includes('src="js/deck.js"')],
   ["引用 js/site.js", html.includes('src="js/site.js"')],
   ["无内联主脚本", !html.includes('"use strict";')],
-  ["页脚有版本号", /v1\.\d+/.test(html)],
+  ["页脚有版本号", /v\d+\.\d+/.test(html)],
   ["登录墙存在", html.includes('id="authGate"')],
 ];
 for (const [name, ok] of checks) {
