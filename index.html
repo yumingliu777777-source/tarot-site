@@ -332,6 +332,17 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
 .admin-actions .btn.danger{border-color:rgba(176,85,79,.5);color:#d98a7a}
 .muted{color:var(--muted)}
 .admin-note{font-size:11px;color:var(--gold-dim);letter-spacing:.06em;margin-top:14px;line-height:1.8}
+/* ── 登录墙（未登录全屏覆盖）── */
+.auth-gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;
+  background:radial-gradient(900px 500px at 20% 0%, rgba(123,108,214,.16), transparent 60%),
+             radial-gradient(800px 500px at 100% 100%, rgba(201,169,87,.10), transparent 60%), #07070b}
+.auth-gate .gate-box{width:min(430px,100%);background:var(--bg2);border:1px solid rgba(201,169,87,.4);
+  border-radius:8px;padding:30px 26px 24px;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+.auth-gate .gate-brand{font-family:var(--serif);font-size:24px;letter-spacing:.35em;color:var(--gold-hi);
+  text-align:center;font-weight:600}
+.auth-gate .gate-sub{font-size:12px;color:var(--muted);text-align:center;letter-spacing:.08em;margin:10px 0 20px;line-height:1.8}
+.auth-gate .gate-referral{border:1px solid rgba(201,169,87,.4);background:rgba(201,169,87,.07);
+  color:var(--gold-hi);font-size:12px;text-align:center;padding:9px 12px;margin:0 0 16px;line-height:1.7;border-radius:3px}
 @media (max-width:760px){
   .spread-grid{grid-template-columns:1fr;max-width:420px}
   .qr-box img{width:170px;height:170px}
@@ -584,7 +595,7 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
       <button class="btn ghost" id="btnAiReport">AI 深度解读</button>
       <button class="btn primary" id="btnPrint">打印 / 保存报告</button>
     </div>
-    <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，不构成专业建议，请理性看待<br>它给不了你答案，却能陪你照见内心 —— 选择权永远在你<br><span style="opacity:.45">v1.6</span></p>
+    <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，不构成专业建议，请理性看待<br>它给不了你答案，却能陪你照见内心 —— 选择权永远在你<br><span style="opacity:.45">v1.7</span></p>
   </section>
 </div>
 
@@ -596,6 +607,14 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- 登录墙：未登录时全屏覆盖，必须先登录/注册才能使用 -->
+<div class="auth-gate hidden" id="authGate">
+  <div class="gate-box">
+    <div class="gate-brand">✦ 星夜塔罗</div>
+    <div id="gateContent"></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -1426,8 +1445,74 @@ async function refreshAccount(){
       return acc;
     }
     clearSession();
+    if(sbConfigured()) showAuthGate();
     return null;
   }catch(e){ return readCachedAccount(); }
+}
+/* ══════════ 登录墙：未登录全屏拦截 ══════════ */
+function showAuthGate(){
+  const gate=$("authGate");
+  if(!gate || !sbConfigured()) return;
+  if(getSession()){ gate.classList.add("hidden"); return; }
+  gate.classList.remove("hidden");
+  renderGateForm();
+}
+function hideAuthGate(){ const g=$("authGate"); if(g) g.classList.add("hidden"); }
+function renderGateForm(){
+  const content=$("gateContent");
+  const ref=(getStoredReferrer()||"").toUpperCase();
+  content.innerHTML=`
+    <p class="gate-sub">登录后即可开始占卜 · 每日一签 · 牌意词典 · AI 深度解读<br>注册即得专属邀请链接，邀请好友各得 1 次免费深度解析</p>
+    ${ref?`<div class="gate-referral">🎁 你正使用好友邀请码 <b>${ref}</b>，注册后你和好友各得 1 次免费深度解析</div>`:""}
+    <div class="auth-tabs"><button class="auth-tab sel" id="gTabLogin">登录</button><button class="auth-tab" id="gTabReg">注册</button></div>
+    <form class="api-form" id="gForm">
+      <label>用户名<input id="gUser" maxlength="20" autocomplete="username" placeholder="4-20 位字母/数字/下划线"></label>
+      <div id="gRegFields" class="hidden">
+        <label>昵称（选填）<input id="gNick" maxlength="20" placeholder="显示在账户页与推广记录里"></label>
+        <label>邀请码（选填）<input id="gRef" maxlength="8" placeholder="好友的邀请码" value="${ref}"></label>
+      </div>
+      <label>密码<input id="gPwd" type="password" autocomplete="current-password" placeholder="至少 6 位"></label>
+      <div id="gPwd2" class="hidden"><label>确认密码<input id="gPwd2Input" type="password" autocomplete="new-password"></label></div>
+      <div class="btn-row"><button class="btn primary" id="gSubmit" type="submit" style="width:100%">登 录</button></div>
+    </form>`;
+  let mode="login";
+  const setMode=m=>{
+    mode=m;
+    $("gTabLogin").classList.toggle("sel",m==="login");
+    $("gTabReg").classList.toggle("sel",m==="register");
+    $("gRegFields").classList.toggle("hidden",m!=="register");
+    $("gPwd2").classList.toggle("hidden",m!=="register");
+    $("gSubmit").textContent=m==="login"?"登 录":"注册并领取新人礼";
+  };
+  $("gTabLogin").onclick=()=>setMode("login");
+  $("gTabReg").onclick=()=>setMode("register");
+  setMode(ref?"register":"login");
+  $("gForm").onsubmit=async e=>{
+    e.preventDefault();
+    const user=$("gUser").value.trim(), pwd=$("gPwd").value, btn=$("gSubmit");
+    btn.disabled=true; btn.textContent="请稍候…";
+    try{
+      let r;
+      if(mode==="login"){
+        r=await sbRpc("login_account",{p_username:user,p_password:pwd});
+        if(!(r&&r.token)) throw new Error("登录失败");
+      }else{
+        if(pwd!==$("gPwd2Input").value) throw new Error("两次输入的密码不一致");
+        const refVal=($("gRef").value.trim()||getStoredReferrer()).toUpperCase();
+        r=await sbRpc("register_account",{p_username:user,p_password:pwd,p_nickname:$("gNick").value.trim(),p_referrer:refVal,p_device:getDeviceId()});
+        if(!(r&&r.token)) throw new Error("注册失败");
+        showToast(refVal?"🎉 注册成功！你和好友各 +1 次免费深度解析":"注册成功，快去邀请好友吧 ✦");
+      }
+      saveSession(r.token,{username:r.username,nickname:r.nickname,credits:r.credits,ref_code:r.ref_code,referrer:"",createdAt:"",is_admin:false});
+      await refreshAccount();
+      updateMemberBadge(); updateNewbieBanner();
+      hideAuthGate();
+      if(pendingAdminIntent){ pendingAdminIntent=false; openAdmin(); }
+    }catch(err){
+      showToast(err.message||"操作失败，请稍后再试");
+      btn.disabled=false; btn.textContent=mode==="login"?"登 录":"注册并领取新人礼";
+    }
+  };
 }
 /* 深度解析额度：登录用户看账号余额（服务端），未登录看本机设备权益 */
 const getCredits = () => {
@@ -1500,7 +1585,7 @@ function openAccountReal(){
   content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(acc?.nickname||acc?.username||"星夜旅人")}</h3><p>@${escapeHtml(acc?.username||"")} · 额度跟账号走，换设备登录后依然可用</p></div></section><div class="benefit-grid"><div class="benefit"><strong id="statCredits">${acc?.credits||0}</strong><span>深度解析次数</span></div><div class="benefit"><strong id="statNew">…</strong><span>已拉新人数</span></div><div class="benefit"><strong>${acc?.createdAt?String(acc.createdAt).slice(0,10):"--"}</strong><span>注册日期</span></div></div><section class="referral-box"><h3>我的专属邀请链接</h3><p>好友用此链接注册，你和 TA 各 +1 次免费深度解析，多邀多得。</p><div class="referral-link"><input id="promoLink" readonly value="${promoLinkFor(acc?.ref_code||"")}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></section><div class="btn-row">${acc?.is_admin?'<button class="btn primary" id="btnAdmin" style="padding:10px 26px;font-size:13px">⚙ 管理后台</button>':""}<button class="btn ghost" id="btnEditProfile">修改昵称</button><button class="btn ghost" id="btnChangePwd">修改密码</button><button class="btn ghost" id="btnLogout">退出登录</button></div><div id="editPanel"></div>`;
   $("btnCopyPromo").onclick=()=>copyText(promoLinkFor(acc?.ref_code||"")).then(()=>showToast("邀请链接已复制"));
   if(acc?.is_admin && $("btnAdmin")) $("btnAdmin").onclick=openAdmin;
-  $("btnLogout").onclick=async()=>{ try{ await sbRpc("logout_account",{p_token:token}); }catch(e){} clearSession(); showToast("已退出登录"); updateMemberBadge(); updateNewbieBanner(); openAccountReal(); };
+  $("btnLogout").onclick=async()=>{ try{ await sbRpc("logout_account",{p_token:token}); }catch(e){} clearSession(); showToast("已退出登录"); updateMemberBadge(); updateNewbieBanner(); openAccountReal(); showAuthGate(); };
   $("btnEditProfile").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="nickForm"><label>新昵称<input id="nickInput" maxlength="20" value="${escapeHtml(acc?.nickname||"")}"></label><div class="btn-row"><button class="btn primary" type="submit">保存</button></div></form>`; $("nickForm").onsubmit=async e=>{e.preventDefault(); try{ const r=await sbRpc("update_profile",{p_token:token,p_nickname:$("nickInput").value.trim()}); if(r&&r.ok){ await refreshAccount(); showToast("昵称已更新"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };
   $("btnChangePwd").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="pwdForm"><label>原密码<input id="pwdOld" type="password" autocomplete="current-password"></label><label>新密码（至少6位）<input id="pwdNew" type="password" autocomplete="new-password"></label><label>确认新密码<input id="pwdNew2" type="password" autocomplete="new-password"></label><div class="btn-row"><button class="btn primary" type="submit">修改</button></div></form>`; $("pwdForm").onsubmit=async e=>{e.preventDefault(); if($("pwdNew").value!==$("pwdNew2").value){showToast("两次输入的新密码不一致");return;} try{ const r=await sbRpc("change_password",{p_token:token,p_old:$("pwdOld").value,p_new:$("pwdNew").value}); if(r&&r.ok){ showToast("密码已修改"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };
   sbRpc("my_referrals",{p_token:token}).then(stats=>{ if(stats&&stats.ok){ const el=$("statNew"); if(el) el.textContent=stats.new_users||0; } }).catch(()=>{ const el=$("statNew"); if(el) el.textContent="—"; });
@@ -1918,7 +2003,8 @@ bindNumToggles();
 applyNumStyle();
 updateMemberBadge();
 updateNewbieBanner();
-if(getSession()){ refreshAccount(); }  // 恢复登录态：同步账号额度与昵称
+if(getSession()){ refreshAccount(); }        // 恢复登录态：同步账号额度与昵称
+else if(sbConfigured()){ showAuthGate(); }   // 未登录：全屏登录墙
 if(autoPayEnabled()){
   /* 易支付付款后跳回本站 ?pay=return&order=xxx：自动确认并同步权益 */
   const payParams=new URLSearchParams(location.search);
