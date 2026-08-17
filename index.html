@@ -584,7 +584,7 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
       <button class="btn ghost" id="btnAiReport">AI 深度解读</button>
       <button class="btn primary" id="btnPrint">打印 / 保存报告</button>
     </div>
-    <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，不构成专业建议，请理性看待<br>它给不了你答案，却能陪你照见内心 —— 选择权永远在你<br><span style="opacity:.45">v1.5</span></p>
+    <p class="foot-note">✦ 塔罗指引仅供心灵参考，命运始终握在你自己手中 ✦<br>占卜结果由随机算法生成，不构成专业建议，请理性看待<br>它给不了你答案，却能陪你照见内心 —— 选择权永远在你<br><span style="opacity:.45">v1.6</span></p>
   </section>
 </div>
 
@@ -610,6 +610,15 @@ const SUIT_SVG = {
   "星币":'<svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="#8a6d2f" stroke-width="2"><circle cx="24" cy="24" r="16"/><path d="M24 12l3.6 7.3 8 .9-6 5.5 1.6 7.9-7.2-4.1-7.2 4.1 1.6-7.9-6-5.5 8-.9z" fill="#8a6d2f" opacity=".35"/></svg>'
 };
 const MAJOR_GLYPH = ["✶","✷","☽","✸","♛","✹","♥","✺","✻","✼","✾","⚖","✽","❖","☯","☿","☄","✦","☁","☀","✧","❂"];
+/* 牌面纯数字：大阿卡纳 0-21；数字牌 A-X → 1-10；宫廷牌 → 11-14 */
+const COURT_NUM = { "侍从":11, "骑士":12, "皇后":13, "国王":14 };
+const MINOR_NUM = { "A":1,"II":2,"III":3,"IV":4,"V":5,"VI":6,"VII":7,"VIII":8,"IX":9,"X":10 };
+const cardNumber = card => {
+  if(card[3] === "大") return String(card[2]);
+  if(COURT_NUM[card[2]] != null) return String(COURT_NUM[card[2]]);
+  if(MINOR_NUM[card[2]] != null) return String(MINOR_NUM[card[2]]);
+  return String(card[2]);
+};
 
 /* [中文名, 英文名, 数字, 大/小, 关键字数组, 正位释义, 逆位释义] */
 const DECK = [
@@ -903,7 +912,7 @@ function renderFan(){
     c.dataset.i = i;
     const back = document.createElement("div");
     back.className = "card-back";
-    back.innerHTML = `<span class="back-num">${d[2]}</span>`;
+    back.innerHTML = `<span class="back-num">${cardNumber(d)}</span>`;
     c.appendChild(back);
     c.onclick = () => pickCard(i, c);
     zone.appendChild(c);
@@ -1047,11 +1056,11 @@ function landCard(slotWrap, card){
   inner.className = "card3d";
   const back = document.createElement("div");
   back.className = "card-back";
-  back.innerHTML = `<span class="back-num">${card[2]}</span>`;
+  back.innerHTML = `<span class="back-num">${cardNumber(card)}</span>`;
   const face = document.createElement("div");
   face.className = "card-face" + (card.reversed ? " rev" : "");
   const isMajor = card[3] === "大";
-  const cornerNum = `${card[2]}${card.reversed ? "" : ""}`;
+  const cornerNum = cardNumber(card);
   const corners = `<div class="poker-corner tl"><span class="pv">${cornerNum}</span>${isMajor ? "" : `<span class="ps">${SUIT_GLYPH[card[3]]}</span>`}</div><div class="poker-corner br"><span class="pv">${cornerNum}</span>${isMajor ? "" : `<span class="ps">${SUIT_GLYPH[card[3]]}</span>`}</div>`;
   face.innerHTML = `
     ${corners}
@@ -1125,8 +1134,8 @@ function renderReport(){
     const meaning = d.reversed ? d[6] : d[5];
     return `<div class="card-item">
       <div class="thumb ${ori}">
-        <div class="poker-corner tl"><span class="pv">${d[2]}</span>${isMajor?"":`<span class="ps">${SUIT_GLYPH[d[3]]}</span>`}</div>
-        <div class="poker-corner br"><span class="pv">${d[2]}</span>${isMajor?"":`<span class="ps">${SUIT_GLYPH[d[3]]}</span>`}</div>
+        <div class="poker-corner tl"><span class="pv">${cardNumber(d)}</span>${isMajor?"":`<span class="ps">${SUIT_GLYPH[d[3]]}</span>`}</div>
+        <div class="poker-corner br"><span class="pv">${cardNumber(d)}</span>${isMajor?"":`<span class="ps">${SUIT_GLYPH[d[3]]}</span>`}</div>
         <div class="suit">${isMajor?"":SUIT_GLYPH[d[3]]}</div>
         <div class="glyph">${isMajor?MAJOR_GLYPH[d[2]]:SUIT_SVG[d[3]]}</div>
         <div class="tname">${d[0]}</div>
@@ -1316,7 +1325,7 @@ function openModal(kind){
     let entry=daily.find(item => item.day===today);
     if(!entry){ const seed=[...today].reduce((sum,char)=>sum+char.charCodeAt(0),0); entry={day:today,name:DECK[seed%DECK.length][0],reversed:seed%7===0}; daily.unshift(entry); safeWrite(DAILY_KEY,daily.slice(0,366)); }
     const card=Object.assign([...cardByName(entry.name)],{reversed:entry.reversed}); const meaning=card.reversed?card[6]:card[5];
-    content.innerHTML=`<h2 class="modal-title" id="toolTitle">每日一签</h2><p class="modal-sub">${today} · 每天一张牌，留下一条与自己对话的线索。</p><div class="daily-card"><div class="thumb ${card.reversed?"rev":""}"><div class="poker-corner tl"><span class="pv">${card[2]}</span>${card[3]==="大"?"":`<span class="ps">${SUIT_GLYPH[card[3]]}</span>`}</div><div class="poker-corner br"><span class="pv">${card[2]}</span>${card[3]==="大"?"":`<span class="ps">${SUIT_GLYPH[card[3]]}</span>`}</div><div class="suit">${card[3]==="大"?"":SUIT_GLYPH[card[3]]}</div><div class="glyph">${card[3]==="大"?MAJOR_GLYPH[card[2]]:SUIT_SVG[card[3]]}</div><div class="tname">${card[0]}</div></div><div><h3>${card[0]} · ${card.reversed?"逆位":"正位"}</h3><div class="kws">${card[4].map(escapeHtml).join(" · ")}</div><p>${meaning}</p></div></div>`;
+    content.innerHTML=`<h2 class="modal-title" id="toolTitle">每日一签</h2><p class="modal-sub">${today} · 每天一张牌，留下一条与自己对话的线索。</p><div class="daily-card"><div class="thumb ${card.reversed?"rev":""}"><div class="poker-corner tl"><span class="pv">${cardNumber(card)}</span>${card[3]==="大"?"":`<span class="ps">${SUIT_GLYPH[card[3]]}</span>`}</div><div class="poker-corner br"><span class="pv">${cardNumber(card)}</span>${card[3]==="大"?"":`<span class="ps">${SUIT_GLYPH[card[3]]}</span>`}</div><div class="suit">${card[3]==="大"?"":SUIT_GLYPH[card[3]]}</div><div class="glyph">${card[3]==="大"?MAJOR_GLYPH[card[2]]:SUIT_SVG[card[3]]}</div><div class="tname">${card[0]}</div></div><div><h3>${card[0]} · ${card.reversed?"逆位":"正位"}</h3><div class="kws">${card[4].map(escapeHtml).join(" · ")}</div><p>${meaning}</p></div></div>`;
   } else if(kind === "history"){
     const reports=safeRead(HISTORY_KEY), daily=safeRead(DAILY_KEY).map(item=>({spread:"每日一签",at:item.day,cards:[item],question:"每日一签"})); const items=[...reports,...daily].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
     content.innerHTML=`<h2 class="modal-title" id="toolTitle">抽牌历史</h2><p class="modal-sub">记录保存在当前浏览器。报告最多保留 80 次，每日一签最多保留一年。</p><div class="history-list">${items.length?items.map((item,index)=>`<button class="history-item" data-history="${index}"><time>${String(item.at).slice(0,10)}</time><div><h4>${escapeHtml(item.spread || "塔罗报告")}</h4><p>${item.cards.map(card=>escapeHtml(card.name)).join(" · ")}</p></div><span>查看</span></button>`).join(""):`<p class="modal-sub">还没有记录。完成一次占卜或抽取每日一签后，它会出现在这里。</p>`}</div>`;
