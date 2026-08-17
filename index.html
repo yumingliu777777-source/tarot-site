@@ -202,9 +202,9 @@ p.sub{text-align:center;color:var(--muted);font-size:14px;letter-spacing:.08em;m
   color:#6d5a24;font-family:var(--serif);pointer-events:none;z-index:2}
 .card-face .poker-corner.tl{top:9px;left:9px}
 .card-face .poker-corner.br{right:9px;bottom:9px;transform:rotate(180deg)}
-.card-face .poker-corner .pv{font-size:17px;font-weight:700;letter-spacing:.02em}
-.card-face .poker-corner .ps{font-size:12px;margin-top:1px}
-.card-face.rev .poker-corner .pv::after{content:"逆";font-size:8px;color:#a03f38;margin-left:1px;vertical-align:top}
+.card-face .poker-corner .pv{font-size:21px;font-weight:800;letter-spacing:.02em;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.card-face .poker-corner .ps{font-size:15px;margin-top:2px}
+.card-face.rev .poker-corner .pv::after{content:"逆";font-size:9px;color:#a03f38;margin-left:2px;vertical-align:top}
 html[data-numstyle="hide"] .card-face .num,
 html[data-numstyle="hide"] .card-face .poker-corner{display:none!important}
 html[data-numstyle="poker"] .card-face .num{display:none!important}
@@ -337,6 +337,8 @@ html[data-numstyle="hide"] .daily-card .thumb .poker-corner{display:none!importa
   .spread-zone{min-height:340px}
   .card-face .glyph{font-size:40px}
   .card-face .cname{font-size:14px}
+  .card-face .poker-corner .pv{font-size:17px}
+  .card-face .poker-corner .ps{font-size:12px}
   .moon{width:80px;height:80px;top:6vh;right:6vw}
   .steps{grid-template-columns:1fr}
   .intro-block{padding:20px 20px 18px}
