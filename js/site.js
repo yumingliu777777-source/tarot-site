@@ -804,6 +804,23 @@ async function refreshAccount(){
     return null;
   }catch(e){ return readCachedAccount(); }
 }
+/* 设备 VIP 权益合并到账号：登录后调用一次，避免"开了VIP却显示0额度" */
+let entMergedPending=null;
+function ensureEntitlementMerged(){
+  if(!sbConfigured() || !getSession()) return Promise.resolve(null);
+  if(entMergedPending) return entMergedPending;
+  entMergedPending=sbRpc("merge_device_entitlement",{p_token:getSession(),p_device:getDeviceId()})
+    .then(r=>{
+      if(r&&r.ok){
+        if(r.merged>0){ showToast(`已将 ${r.merged} 次 VIP 额度合并到账号`); localStorage.removeItem(LOCAL_MEMBER_KEY); }
+        updateMemberBadge();
+      }
+      return r;
+    })
+    .catch(()=>null)
+    .finally(()=>{ entMergedPending=null; });
+  return entMergedPending;
+}
 /* ══════════ 登录墙：未登录全屏拦截 ══════════ */
 function showAuthGate(){
   const gate=$("authGate");
@@ -864,6 +881,7 @@ function renderGateForm(){
       saveSession(r.token,{username:r.username,nickname:r.nickname,credits:r.credits,ref_code:r.ref_code,referrer:"",createdAt:"",is_admin:false});
       await refreshAccount();
       updateMemberBadge(); updateNewbieBanner();
+      ensureEntitlementMerged();
       hideAuthGate();
       if(pendingAdminIntent){ pendingAdminIntent=false; openAdmin(); }
     }catch(err){
@@ -947,10 +965,12 @@ const grantEntitlement = (plan, credits, expiresMs) => {
 };
 function updateMemberBadge(){
   const member = readLocalMember();
+  const hasAccountCredits = getSession() && getCredits() > 0;
+  const isMember = !!(member || hasAccountCredits);
   const badge = $("memberBadge");
-  if(badge) badge.classList.toggle("hidden", !member);
+  if(badge) badge.classList.toggle("hidden", !isMember);
   const cta = $("btnVipCta");
-  if(cta) cta.textContent = member ? "我的会员权益" : "会员权益";
+  if(cta) cta.textContent = isMember ? "我的会员权益" : "会员权益";
   const acct = $("btnAccount");
   if(acct){
     if(getSession()){
@@ -984,9 +1004,10 @@ function openAccount(){
   $("toolModal").classList.remove("hidden");
 }
 /* 真实账号系统：登录 / 注册 / 账户信息 */
-function openAccountReal(){
+async function openAccountReal(){
   const content=$("toolContent"), token=getSession();
   if(!token){ renderAuthForm(content); return; }
+  await refreshAccount();   // 打开账户页先同步服务器上的真实余额（含刚开通的VIP/管理员调整）
   const acc=readCachedAccount();
   const initials=(acc?.nickname||acc?.username||"星").slice(0,1);
   const emailBox=acc?.email
@@ -1062,6 +1083,7 @@ function renderAuthForm(content){
       await refreshAccount();  // 拉取完整资料（含 is_admin / 余额）
       updateMemberBadge();
       updateNewbieBanner();
+      ensureEntitlementMerged();
       track(mode==="login"?"login":"register", { referred: !!getStoredReferrer() });
       if(pendingAdminIntent){ pendingAdminIntent=false; openAdmin(); }
       else openAccountReal();
@@ -1443,7 +1465,7 @@ bindNumToggles();
 applyNumStyle();
 updateMemberBadge();
 updateNewbieBanner();
-if(getSession()){ refreshAccount(); }        // 恢复登录态：同步账号额度与昵称
+if(getSession()){ refreshAccount(); ensureEntitlementMerged(); }        // 恢复登录态：同步账号额度与昵称 + 合并设备VIP权益
 else if(sbConfigured()){ showAuthGate(); }   // 未登录：全屏登录墙
 if(autoPayEnabled()){
   /* 易支付付款后跳回本站 ?pay=return&order=xxx：自动确认并同步权益 */

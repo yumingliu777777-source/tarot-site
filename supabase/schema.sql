@@ -1042,3 +1042,24 @@ end $$;
 
 revoke execute on function add_credit(uuid,int,text,text)   from public, anon, authenticated;
 revoke execute on function log_admin(uuid,text,text,text)    from public, anon, authenticated;
+
+-- 设备权益合并到账号：登录后把该设备名下有效卡密额度并入账号余额（一次性，幂等）
+create or replace function merge_device_entitlement(p_token text, p_device text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_credits int;
+begin
+  v_id := session_account(p_token);
+  if v_id is null then return json_build_object('ok', false, 'reason', 'login_expired'); end if;
+  if length(coalesce(p_device,'')) < 8 then return json_build_object('ok', true, 'merged', 0); end if;
+  select coalesce(sum(c), 0) into v_credits from (
+    select case plan when 'single' then 1 when 'light' then 10 when 'plus' then 30 else 1 end as c
+    from vip_codes
+    where used_by = p_device and status = 'used' and expires_at > now()
+  ) t;
+  if v_credits > 0 then
+    perform add_credit(v_id, v_credits, 'purchase', 'VIP权益合并（设备卡密自动并入账号）');
+    update vip_codes set status = 'revoked'
+    where used_by = p_device and status = 'used' and expires_at > now();
+  end if;
+  return json_build_object('ok', true, 'merged', v_credits);
+end $$;
