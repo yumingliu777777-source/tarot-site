@@ -779,7 +779,7 @@ const TAROT_SUPABASE = {
   url: "https://mkpwkjtuxsklptseemrf.supabase.co",
   anonKey: "sb_publishable_wYXeekHAru_NXDl9wuBakw_7n-vuHGH",        // Settings → API → anon public key
   payApi: "",         // 自动化支付后端（易支付+自动发码）；留空=个人码人工确认（当前模式）
-  aiApi: "https://tarot-site-one.vercel.app",  // 店主 AI 深度解析后端（和 payApi 同一个 Vercel 域名；填了 payApi 可留空）；留空=用户自带 Key
+  aiApi: "https://tarot-ai.13602428798.workers.dev",  // 店主 AI 深度解析后端（Cloudflare Worker，国内连通性更好）
   qrWechat: "qr-wechat.png",
   qrAlipay: "qr-alipay.png",  // 未使用（本店仅微信收款）
   contact: "",        // 你的微信号，买家付完款后联系你确认
