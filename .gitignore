@@ -3,3 +3,5 @@ node_modules/
 .env.local
 .vercel/
 一键推送.bat
+
+worker/.wrangler/
