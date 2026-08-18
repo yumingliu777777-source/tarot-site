@@ -719,14 +719,12 @@ async function generateAiReportV2(){
     await refreshAccount();   // 再同步服务器上的最新额度，避免缓存过期误判
     if(getCredits()<1){ openMemberBilling(); showToast("深度解析额度已用完：邀请好友注册即可获得"); return; }
   }
-  if(!aiApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
+  if(!aiApiBase() && !payApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
   const root=$("report"); let panel=$("aiAnalysis");
   if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
   const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
   try{
-    const res=await fetch(`${aiApiBase()}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt:apiPrompt()})});
-    const data=await res.json().catch(()=>null);
-    if(!res.ok||!data||!data.ok) throw new Error(data?.error||"AI 服务暂时不可用");
+    const data=await callAiBackends(apiPrompt());
     output.textContent=data.text; output.className="api-analysis";
     await refreshAccount();   // 同步服务端扣减后的余额
     updateMemberBadge();
@@ -740,6 +738,23 @@ async function generateAiReportV2(){
       ? "无法连接 AI 服务：你的网络访问不到 AI 服务器（可能是跨域或网络限制）。请切换网络（如手机流量）后再试；若仍不行请联系店主。"
       : `AI 解读暂时无法生成：${error.message}。可稍后重试，或联系店主检查配置。`;
   }
+}
+/* 多后端自动切换：按配置顺序尝试 [worker, vercel]，哪个网络能通就用哪个 */
+function aiBackendBases(){
+  return [...new Set([TAROT_SUPABASE.aiApi, TAROT_SUPABASE.payApi, "https://tarot-site-one.vercel.app"]
+    .map(s=>(s||"").replace(/\/+$/,"")).filter(Boolean))];
+}
+async function callAiBackends(prompt){
+  let lastErr="AI 服务暂时不可用";
+  for(const base of aiBackendBases()){
+    try{
+      const res=await fetch(`${base}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt})});
+      const data=await res.json().catch(()=>null);
+      if(res.ok&&data&&data.ok) return data;
+      lastErr=(data&&data.error)||`AI 服务返回 ${res.status}`;
+    }catch(e){ lastErr=e.message||lastErr; }
+  }
+  throw new Error(lastErr);
 }
 
 const MEMBER_PLANS = [
