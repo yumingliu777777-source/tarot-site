@@ -1,0 +1,21 @@
+# 星夜塔罗 · Cloudflare Worker 配置
+# 部署：cd worker && npx wrangler deploy
+# 非敏感变量放这里；密钥(★)请在 Cloudflare Dashboard → Worker → Settings → Variables and Secrets 添加
+
+name = "tarot-ai"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+SUPABASE_URL = "https://mkpwkjtuxsklptseemrf.supabase.co"
+AI_ENDPOINT = "https://api.deepseek.com/v1"
+AI_MODEL = "deepseek-chat"
+SITE_ORIGIN = "https://yumingliu777777-source.github.io/tarot-site"
+PAYMENT_TEST_MODE = "0"
+# EPAY_GATEWAY = "https://pay.example.com/submit.php"   # 用自动收款时再填
+
+# ★ 以下密钥必须通过 Dashboard → Variables and Secrets 添加（绝不写进仓库）：
+# SUPABASE_SERVICE_ROLE_KEY
+# AI_KEY
+# EPAY_PID
+# EPAY_KEY
