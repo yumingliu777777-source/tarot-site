@@ -734,7 +734,11 @@ async function generateAiReportV2(){
     if(AI_REPORT_NEEDS_MEMBER && sbConfigured()) showToast(`已消耗 1 次深度解析，剩余 ${getCredits()} 次`);
   }catch(error){
     output.className="api-analysis";
-    output.textContent=`AI 解读暂时无法生成：${error.message}。可稍后重试，或联系店主检查配置。`;
+    const raw=String(error.message||error||"");
+    const netFail=/load failed|failed to fetch|networkerror|网络连接|could not connect|not allowed to request/i.test(raw);
+    output.textContent=netFail
+      ? "无法连接 AI 服务：你的网络访问不到 AI 服务器（可能是跨域或网络限制）。请切换网络（如手机流量）后再试；若仍不行请联系店主。"
+      : `AI 解读暂时无法生成：${error.message}。可稍后重试，或联系店主检查配置。`;
   }
 }
 
