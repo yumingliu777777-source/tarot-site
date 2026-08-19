@@ -748,14 +748,17 @@ async function generateAiReportV2(){
     if(expired){ clearSession(); showAuthGate(); }
   }
 }
-/* 多后端自动切换：按配置顺序尝试 [worker, vercel]，哪个网络能通就用哪个 */
+/* Use configured AI services only. A failed Worker must surface its real error,
+   rather than hiding it behind an unrelated Vercel timeout. */
 function aiBackendBases(){
-  return [...new Set([TAROT_SUPABASE.aiApi, TAROT_SUPABASE.payApi, "https://tarot-site-one.vercel.app"]
+  return [...new Set([TAROT_SUPABASE.aiApi, TAROT_SUPABASE.payApi]
     .map(s=>(s||"").replace(/\/+$/,"")).filter(Boolean))];
 }
 async function callAiBackends(prompt){
-  let lastErr="AI 服务暂时不可用";
-  for(const base of aiBackendBases()){
+  const bases=aiBackendBases();
+  if(!bases.length) throw new Error("AI 服务地址未配置");
+  let lastNetworkError="AI 服务暂时不可用";
+  for(const base of bases){
     try{
       const controller=new AbortController();
       const timeout=setTimeout(()=>controller.abort(), 9000);
@@ -764,16 +767,16 @@ async function callAiBackends(prompt){
       const data=await res.json().catch(()=>null);
       if(res.ok&&data&&data.ok) return data;
       const message=(data&&data.error)||`AI 服务返回 ${res.status}`;
-      // Do not try the fallback after a definitive account/credit rejection.
-      if([401,402].includes(res.status)) throw new Error(message);
-      lastErr=message;
+      // A reached server gave a meaningful answer. Surface it instead of
+      // trying an unrelated fallback that can conceal the actual problem.
+      throw new Error(message);
     }catch(e){
-      if(e && e.name==="AbortError") lastErr=`${new URL(base).host} 连接超时`;
-      else lastErr=e.message||lastErr;
-      if(/登录已过期|额度不足/.test(lastErr)) throw e;
+      if(e && e.name==="AbortError") { lastNetworkError=`${new URL(base).host} 连接超时`; continue; }
+      if(/Failed to fetch|NetworkError|Load failed|网络连接|could not connect|not allowed to request/i.test(String(e?.message||""))){ lastNetworkError=e.message||lastNetworkError; continue; }
+      throw e;
     }
   }
-  throw new Error(lastErr);
+  throw new Error(lastNetworkError);
 }
 
 const MEMBER_PLANS = [
