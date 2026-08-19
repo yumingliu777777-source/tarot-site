@@ -713,27 +713,24 @@ async function saveReadingToServer(){
 }
 async function generateAiReportV2(){
   if(!state.drawn.length) return;
-  const personalAi=readPersonalAi();
-  if(!personalAi && AI_REPORT_NEEDS_MEMBER && sbConfigured()){
+  if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
     if(!getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
     await ensureEntitlementMerged();   // 先合并设备VIP权益
     // Do not block on cached credits here. The Worker checks and consumes the
     // authoritative server balance atomically; cached balance can be stale.
     await refreshAccount();
   }
-  if(!personalAi && !aiApiBase() && !payApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
+  if(!aiApiBase() && !payApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
   const root=$("report"); let panel=$("aiAnalysis");
   if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
   const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
   try{
-    const data=personalAi ? await callPersonalAi(personalAi,apiPrompt()) : await callAiBackends(apiPrompt());
+    const data=await callAiBackends(apiPrompt());
     output.textContent=data.text; output.className="api-analysis";
-    if(!personalAi){
-      await refreshAccount();   // 同步服务端扣减后的余额
-      updateMemberBadge();
-      if(lastReadingId) sbRpc("update_ai_report",{p_token:getSession(),p_id:lastReadingId,p_ai:data.text}).catch(()=>{});
-      if(AI_REPORT_NEEDS_MEMBER && sbConfigured()) showToast(`已消耗 1 次深度解析，剩余 ${getCredits()} 次`);
-    }else showToast("已使用你的自有 AI 接口生成解读");
+    await refreshAccount();   // 同步服务端扣减后的余额
+    updateMemberBadge();
+    if(lastReadingId) sbRpc("update_ai_report",{p_token:getSession(),p_id:lastReadingId,p_ai:data.text}).catch(()=>{});
+    if(AI_REPORT_NEEDS_MEMBER && sbConfigured()) showToast(`已消耗 1 次深度解析，剩余 ${getCredits()} 次`);
   }catch(error){
     output.className="api-analysis";
     const raw=String(error.message||error||"");
@@ -746,35 +743,10 @@ async function generateAiReportV2(){
         ? "登录已过期，请重新登录后再生成深度解读。"
       : netFail
       ? "无法连接 AI 服务：你的网络访问不到 AI 服务器（可能是跨域或网络限制）。请切换网络（如手机流量）后再试；若仍不行请联系店主。"
-      : `AI 解读暂时无法生成：${error.message}。${personalAi?"请检查你的接口地址、模型名与 Key。":"可在「我的」中配置自有 DeepSeek / OpenAI 兼容接口后直连使用。"}`;
+      : `AI 解读暂时无法生成：${error.message}。可稍后重试，或联系店主检查配置。`;
     if(noCredits) showToast("深度解析额度不足，可邀请好友或开通会员");
     if(expired){ clearSession(); showAuthGate(); }
   }
-}
-const PERSONAL_AI_KEY="lunar-tarot-personal-ai-v1";
-function readPersonalAi(){
-  try{
-    const config=JSON.parse(localStorage.getItem(PERSONAL_AI_KEY)||"null");
-    return config&&typeof config.endpoint==="string"&&typeof config.model==="string"&&typeof config.key==="string"&&config.key.trim()?config:null;
-  }catch{return null;}
-}
-async function callPersonalAi(config,prompt){
-  let endpoint;
-  try{ endpoint=new URL(config.endpoint).toString().replace(/\/+$/,""); }
-  catch{ throw new Error("自有 AI 接口地址不正确"); }
-  const res=await fetch(`${endpoint}/chat/completions`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json",Authorization:`Bearer ${config.key}`},
-    body:JSON.stringify({model:config.model,messages:[
-      {role:"system",content:"你以中文提供关怀、接地气的塔罗解读，说话像朋友聊天，不声称预测绝对未来，不提供医疗、法律、投资或危机建议。"},
-      {role:"user",content:prompt}
-    ],temperature:0.75})
-  });
-  const data=await res.json().catch(()=>null);
-  if(!res.ok) throw new Error((data&&data.error&&(data.error.message||data.error))||`AI 服务返回 ${res.status}`);
-  const text=data?.choices?.[0]?.message?.content;
-  if(!text) throw new Error("AI 未返回解读内容");
-  return {ok:true,text};
 }
 /* Use configured AI services only. A failed Worker must surface its real error,
    rather than hiding it behind an unrelated Vercel timeout. */
@@ -831,7 +803,7 @@ const TAROT_SUPABASE = {
   url: "https://mkpwkjtuxsklptseemrf.supabase.co",
   anonKey: "sb_publishable_wYXeekHAru_NXDl9wuBakw_7n-vuHGH",        // Settings → API → anon public key
   payApi: "",         // 自动化支付后端（易支付+自动发码）；留空=个人码人工确认（当前模式）
-  aiApi: "https://tarot-ai.13602428798.workers.dev",  // 店主 AI 深度解析后端（Cloudflare Worker，国内连通性更好）
+  aiApi: "https://mkpwkjtuxsklptseemrf.supabase.co/functions/v1/tarot-ai",  // 官方 AI 网关：会员额度校验 + 店主模型 Key
   qrWechat: "qr-wechat.png",
   qrAlipay: "qr-alipay.png",  // 未使用（本店仅微信收款）
   contact: "",        // 你的微信号，买家付完款后联系你确认
@@ -1103,25 +1075,11 @@ async function openAccountReal(){
   const emailBox=acc?.email
     ? `<section class="referral-box"><h3>绑定邮箱</h3><p>${escapeHtml(acc.email)}${acc.email_verified?' <span class="st-paid">已验证</span>':' <span class="muted">（未验证）</span>'} · 用于忘记密码找回</p></section>`
     : `<section class="referral-box"><h3>绑定邮箱</h3><p>用于忘记密码找回。未接邮件服务，找回码会直接显示在页面上。</p><div class="code-row"><input class="member-input" id="bindEmail" placeholder="name@example.com"><button class="btn primary" id="btnBindEmail">绑定</button></div></section>`;
-  const personalAi=readPersonalAi();
-  const personalAiBox=`<section class="referral-box"><h3>自有 AI 接口</h3><p>${personalAi?"已启用：AI 深度解读将直连你的接口，不受 Cloudflare Worker 网络限制。":"可填入自己的 DeepSeek 或 OpenAI 兼容接口，Key 仅保存在此浏览器，不上传到本站。"}</p><form class="api-form" id="personalAiForm"><label>接口地址<input id="personalAiEndpoint" value="${escapeHtml(personalAi?.endpoint||"https://api.deepseek.com/v1")}" placeholder="https://api.deepseek.com/v1"></label><label>模型名称<input id="personalAiModel" value="${escapeHtml(personalAi?.model||"deepseek-chat")}" placeholder="deepseek-chat"></label><label>${personalAi?"替换 API Key（留空则保留当前 Key）":"API Key"}<input id="personalAiKey" type="password" autocomplete="off" placeholder="sk-..."></label><div class="btn-row"><button class="btn primary" type="submit">保存 AI 接口</button>${personalAi?'<button class="btn ghost" type="button" id="btnClearPersonalAi">停用并清除</button>':""}</div></form></section>`;
-  content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(acc?.nickname||acc?.username||"星夜旅人")}</h3><p>@${escapeHtml(acc?.username||"")} · 额度跟账号走，换设备登录后依然可用</p></div></section><div class="benefit-grid"><div class="benefit"><strong id="statCredits">${acc?.credits||0}</strong><span>深度解析次数</span></div><div class="benefit"><strong id="statNew">…</strong><span>已拉新人数</span></div><div class="benefit"><strong>${acc?.createdAt?String(acc.createdAt).slice(0,10):"--"}</strong><span>注册日期</span></div></div>${emailBox}${personalAiBox}<section class="referral-box"><h3>我的专属邀请链接</h3><p>好友用此链接注册，你和 TA 各 +1 次免费深度解析，多邀多得。</p><div class="referral-link"><input id="promoLink" readonly value="${promoLinkFor(acc?.ref_code||"")}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></section><section class="referral-box"><h3>额度明细</h3><div class="order-list" id="ledgerList">加载中…</div></section><div class="btn-row">${acc?.is_admin?'<button class="btn primary" id="btnAdmin" style="padding:10px 26px;font-size:13px">⚙ 管理后台</button>':""}<button class="btn ghost" id="btnEditProfile">修改昵称</button><button class="btn ghost" id="btnChangePwd">修改密码</button><button class="btn ghost" id="btnLogout">退出登录</button></div><div id="editPanel"></div>`;
+  content.innerHTML=`<h2 class="modal-title" id="toolTitle">我的账户</h2><section class="account-summary"><div class="avatar">${escapeHtml(initials)}</div><div><h3>${escapeHtml(acc?.nickname||acc?.username||"星夜旅人")}</h3><p>@${escapeHtml(acc?.username||"")} · 额度跟账号走，换设备登录后依然可用</p></div></section><div class="benefit-grid"><div class="benefit"><strong id="statCredits">${acc?.credits||0}</strong><span>深度解析次数</span></div><div class="benefit"><strong id="statNew">…</strong><span>已拉新人数</span></div><div class="benefit"><strong>${acc?.createdAt?String(acc.createdAt).slice(0,10):"--"}</strong><span>注册日期</span></div></div>${emailBox}<section class="referral-box"><h3>我的专属邀请链接</h3><p>好友用此链接注册，你和 TA 各 +1 次免费深度解析，多邀多得。</p><div class="referral-link"><input id="promoLink" readonly value="${promoLinkFor(acc?.ref_code||"")}"><button class="btn ghost" id="btnCopyPromo">复制</button></div></section><section class="referral-box"><h3>额度明细</h3><div class="order-list" id="ledgerList">加载中…</div></section><div class="btn-row">${acc?.is_admin?'<button class="btn primary" id="btnAdmin" style="padding:10px 26px;font-size:13px">⚙ 管理后台</button>':""}<button class="btn ghost" id="btnEditProfile">修改昵称</button><button class="btn ghost" id="btnChangePwd">修改密码</button><button class="btn ghost" id="btnLogout">退出登录</button></div><div id="editPanel"></div>`;
   $("btnCopyPromo").onclick=()=>copyText(promoLinkFor(acc?.ref_code||"")).then(()=>showToast("邀请链接已复制"));
   if(acc?.is_admin && $("btnAdmin")) $("btnAdmin").onclick=openAdmin;
   const bindBtn=$("btnBindEmail");
   if(bindBtn) bindBtn.onclick=async()=>{ try{ const r=await sbRpc("bind_email",{p_token:token,p_email:$("bindEmail").value.trim()}); if(r&&r.ok){ showToast("邮箱已绑定"); await refreshAccount(); openAccountReal(); } }catch(e){ showToast(e.message); } };
-  $("personalAiForm").onsubmit=e=>{
-    e.preventDefault();
-    const endpoint=$("personalAiEndpoint").value.trim().replace(/\/+$/,"");
-    const model=$("personalAiModel").value.trim();
-    const key=$("personalAiKey").value.trim()||personalAi?.key||"";
-    try{ new URL(endpoint); }catch{ showToast("请输入正确的接口地址"); return; }
-    if(!model||!key){ showToast("请填写模型名称和 API Key"); return; }
-    localStorage.setItem(PERSONAL_AI_KEY,JSON.stringify({endpoint,model,key}));
-    showToast("自有 AI 接口已保存，只存于当前浏览器"); openAccountReal();
-  };
-  const clearPersonalAi=$("btnClearPersonalAi");
-  if(clearPersonalAi) clearPersonalAi.onclick=()=>{ localStorage.removeItem(PERSONAL_AI_KEY); showToast("已停用自有 AI 接口"); openAccountReal(); };
   $("btnLogout").onclick=async()=>{ try{ await sbRpc("logout_account",{p_token:token}); }catch(e){} clearSession(); showToast("已退出登录"); updateMemberBadge(); updateNewbieBanner(); openAccountReal(); showAuthGate(); };
   $("btnEditProfile").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="nickForm"><label>新昵称<input id="nickInput" maxlength="20" value="${escapeHtml(acc?.nickname||"")}"></label><div class="btn-row"><button class="btn primary" type="submit">保存</button></div></form>`; $("nickForm").onsubmit=async e=>{e.preventDefault(); try{ const r=await sbRpc("update_profile",{p_token:token,p_nickname:$("nickInput").value.trim()}); if(r&&r.ok){ await refreshAccount(); showToast("昵称已更新"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };
   $("btnChangePwd").onclick=()=>{ const p=$("editPanel"); p.innerHTML=`<form class="api-form" id="pwdForm"><label>原密码<input id="pwdOld" type="password" autocomplete="current-password"></label><label>新密码（至少6位）<input id="pwdNew" type="password" autocomplete="new-password"></label><label>确认新密码<input id="pwdNew2" type="password" autocomplete="new-password"></label><div class="btn-row"><button class="btn primary" type="submit">修改</button></div></form>`; $("pwdForm").onsubmit=async e=>{e.preventDefault(); if($("pwdNew").value!==$("pwdNew2").value){showToast("两次输入的新密码不一致");return;} try{ const r=await sbRpc("change_password",{p_token:token,p_old:$("pwdOld").value,p_new:$("pwdNew").value}); if(r&&r.ok){ showToast("密码已修改，其他设备已退出登录"); openAccountReal(); } }catch(err){ showToast(err.message); } }; };

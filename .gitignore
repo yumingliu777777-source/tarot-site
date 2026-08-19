@@ -5,3 +5,4 @@ node_modules/
 一键推送.bat
 
 worker/.wrangler/
+supabase/.temp/
