@@ -711,50 +711,42 @@ async function saveReadingToServer(){
     if(r&&r.ok) lastReadingId=r.id;
   }catch(e){ /* 静默，不影响占卜流程 */ }
 }
-function buildDeepReading(){
-  const spread=SPREADS[state.spread];
-  const drawn=state.drawn;
-  const upright=drawn.filter(card=>!card.reversed).length;
-  const reversed=drawn.length-upright;
-  const major=drawn.filter(card=>card[3]==="大").length;
-  const suits={"权杖":0,"圣杯":0,"宝剑":0,"星币":0};
-  drawn.forEach(card=>{if(card[3]!=="大") suits[card[3]]++;});
-  const dominant=Object.entries(suits).sort((a,b)=>b[1]-a[1])[0];
-  const topic=state.question||"你当下最需要看清的方向";
-  const orientation=upright>reversed?"整体阻力较小，重点在于把已经看见的机会落实下来。":upright===reversed?"机会和顾虑并存，关键不是急着选边，而是先把优先级讲清楚。":"眼下需要先处理卡住的环节，不必急着把所有事一次解决。";
-  const lines=[
-    `【整体主题】围绕“${topic}”，这副${spread.name}的核心不是给你一个绝对答案，而是提醒你：${orientation}`,
-    major?`牌阵中出现 ${major} 张大阿尔卡那，说明这不是一件小事，它会推动你重新审视自己的选择、边界或长期方向。`:"这副牌更多在回应现实中的具体处境，接下来怎么做，比反复猜测结果更重要。"
-  ];
-  drawn.forEach((card,index)=>{
-    const slot=spread.slots[index];
-    const orientationText=card.reversed?"逆位":"正位";
-    const meaning=card.reversed?card[6]:card[5];
-    lines.push(`【${slot.label} · ${card[0]}（${orientationText}）】${slot.mean} ${meaning} 这张牌的关键词是“${card[4].join("、")}”，放到这个位置上，建议你先从最具体、最能掌控的一步开始。`);
-  });
-  if(dominant[1]>0){
-    const elementAdvice={"权杖":"少一点观望，多安排一次明确的行动或沟通","圣杯":"先辨认自己真正的感受，再表达需求","宝剑":"把事实、猜测和担忧分开写清楚","星币":"先处理时间、金钱、工作安排等现实条件"};
-    lines.push(`【牌与牌的联系】${dominant[0]}的能量最突出，说明这件事更需要你${elementAdvice[dominant[0]]}。不要只盯着单张牌的好坏，牌阵整体更强调节奏和取舍。`);
-  }
-  const keywords=[...new Set(drawn.flatMap(card=>card[4]))];
-  const actions=[
-    `在未来 24 小时内，围绕“${keywords[0]||"行动"}”完成一件小事，别只停留在想法。`,
-    `把最让你反复纠结的一点写下来，区分“事实”“担心”“下一步可验证的事”。`,
-    `给自己设一个短周期复盘点，例如 7 天后回看进展，再决定是否调整方向。`
-  ];
-  lines.push(`【接下来怎么走】\n1. ${actions[0]}\n2. ${actions[1]}\n3. ${actions[2]}`);
-  lines.push(`【容易忽略的盲点】${reversed>upright?"别把暂时的不顺误读成完全没有希望；先修正方式，再评价结果。":"别因为牌面整体积极就跳过细节和边界，稳定推进比一时冲劲更重要。"}`);
-  lines.push(`【一句话总结】先照顾好当下最真实的需求，再做下一步选择；你不需要一次把整条路走完。`);
-  return lines.join("\n\n");
-}
-function generateAiReportV2(){
+async function generateAiReportV2(){
   if(!state.drawn.length) return;
-  track("generate_deep_reading",{spread:state.spread,cards:state.drawn.length});
-  attachAiText(buildDeepReading());
-  const panel=$("aiAnalysis");
-  const title=panel&&panel.querySelector(".sec-title");
-  if(title) title.textContent="✦ 深度解读";
-  showToast("深度解读已生成");
+  if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
+    if(!getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
+    await ensureEntitlementMerged();   // 先合并设备VIP权益
+    // Do not block on cached credits here. The Worker checks and consumes the
+    // authoritative server balance atomically; cached balance can be stale.
+    await refreshAccount();
+  }
+  if(!aiApiBase() && !payApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
+  const root=$("report"); let panel=$("aiAnalysis");
+  if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
+  const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
+  try{
+    const data=await callAiBackends(apiPrompt());
+    output.textContent=data.text; output.className="api-analysis";
+    await refreshAccount();   // 同步服务端扣减后的余额
+    updateMemberBadge();
+    if(lastReadingId) sbRpc("update_ai_report",{p_token:getSession(),p_id:lastReadingId,p_ai:data.text}).catch(()=>{});
+    if(AI_REPORT_NEEDS_MEMBER && sbConfigured()) showToast(`已消耗 1 次深度解析，剩余 ${getCredits()} 次`);
+  }catch(error){
+    output.className="api-analysis";
+    const raw=String(error.message||error||"");
+    const netFail=/load failed|failed to fetch|networkerror|网络连接|could not connect|not allowed to request/i.test(raw);
+    const noCredits=/额度不足/.test(raw);
+    const expired=/登录已过期/.test(raw);
+    output.textContent=noCredits
+      ? "你的深度解析额度已用完。邀请一位新用户注册，双方各得 1 次免费深度解析；也可以开通会员获得更多额度。"
+      : expired
+        ? "登录已过期，请重新登录后再生成深度解读。"
+      : netFail
+      ? "无法连接 AI 服务：你的网络访问不到 AI 服务器（可能是跨域或网络限制）。请切换网络（如手机流量）后再试；若仍不行请联系店主。"
+      : `AI 解读暂时无法生成：${error.message}。可稍后重试，或联系店主检查配置。`;
+    if(noCredits) showToast("深度解析额度不足，可邀请好友或开通会员");
+    if(expired){ clearSession(); showAuthGate(); }
+  }
 }
 /* 多后端自动切换：按配置顺序尝试 [worker, vercel]，哪个网络能通就用哪个 */
 function aiBackendBases(){
