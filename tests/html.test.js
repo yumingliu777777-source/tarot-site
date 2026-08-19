@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 
 test("引用 style.css / js/deck.js / js/site.js", () => {
   assert.ok(html.includes('href="style.css"'), "缺 style.css 引用");
-  assert.ok(html.includes('src="js/deck.js"'), "缺 deck.js 引用");
-  assert.ok(html.includes('src="js/site.js"'), "缺 site.js 引用");
+  assert.match(html, /src="js\/deck\.js(?:\?[^\"]*)?"/, "缺 deck.js 引用");
+  assert.match(html, /src="js\/site\.js(?:\?[^\"]*)?"/, "缺 site.js 引用");
 });
 test("无内联主脚本残留", () => {
   assert.ok(!html.includes('"use strict";'), "index.html 仍含内联主脚本");

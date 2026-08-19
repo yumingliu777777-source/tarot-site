@@ -761,7 +761,9 @@ async function callAiBackends(prompt){
   for(const base of bases){
     try{
       const controller=new AbortController();
-      const timeout=setTimeout(()=>controller.abort(), 9000);
+      // DeepSeek needs more than a few seconds for a complete multi-card reading.
+      // Do not abort a healthy Worker request before the model can answer.
+      const timeout=setTimeout(()=>controller.abort(), 45000);
       const res=await fetch(`${base}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt}),signal:controller.signal});
       clearTimeout(timeout);
       const data=await res.json().catch(()=>null);

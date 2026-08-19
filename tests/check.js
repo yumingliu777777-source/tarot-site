@@ -26,8 +26,8 @@ for (const f of files) {
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const checks = [
   ["引用 style.css", html.includes('href="style.css"')],
-  ["引用 js/deck.js", html.includes('src="js/deck.js"')],
-  ["引用 js/site.js", html.includes('src="js/site.js"')],
+  ["引用 js/deck.js", /src="js\/deck\.js(?:\?[^\"]*)?"/.test(html)],
+  ["引用 js/site.js", /src="js\/site\.js(?:\?[^\"]*)?"/.test(html)],
   ["无内联主脚本", !html.includes('"use strict";')],
   ["页脚有版本号", /v\d+\.\d+/.test(html)],
   ["登录墙存在", html.includes('id="authGate"')],
