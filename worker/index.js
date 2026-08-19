@@ -1,6 +1,6 @@
 /**
  * 星夜塔罗 · Cloudflare Worker 后端
- * 路由：POST /api/ai · POST /api/epay/create · POST|GET /api/epay/notify · GET /api/order
+ * 路由：GET /api/health · POST /api/ai · POST /api/epay/create · POST|GET /api/epay/notify · GET /api/order
  * 部署：cd worker && npx wrangler deploy
  * 环境变量：见 wrangler.toml（非敏感）+ Dashboard Secrets（密钥）
  */
@@ -33,6 +33,12 @@ export default {
     if (method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
     try {
+      if (path === "/api/health" && method === "GET") return json(200, {
+        ok: true,
+        aiConfigured: !!(env.AI_ENDPOINT && env.AI_MODEL && env.AI_KEY),
+        databaseConfigured: !!(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY),
+        paymentConfigured: !!(env.EPAY_PID && env.EPAY_KEY && env.EPAY_GATEWAY),
+      });
       if (path === "/api/ai" && method === "POST") return await handleAi(request, env);
       if (path === "/api/epay/create" && method === "POST") return await handleCreate(request, env, url);
       if (path === "/api/epay/notify") return await handleNotify(request, env, url);

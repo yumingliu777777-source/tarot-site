@@ -716,8 +716,9 @@ async function generateAiReportV2(){
   if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
     if(!getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
     await ensureEntitlementMerged();   // 先合并设备VIP权益
-    await refreshAccount();   // 再同步服务器上的最新额度，避免缓存过期误判
-    if(getCredits()<1){ openMemberBilling(); showToast("深度解析额度已用完：邀请好友注册即可获得"); return; }
+    // Do not block on cached credits here. The Worker checks and consumes the
+    // authoritative server balance atomically; cached balance can be stale.
+    await refreshAccount();
   }
   if(!aiApiBase() && !payApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
   const root=$("report"); let panel=$("aiAnalysis");
@@ -734,9 +735,17 @@ async function generateAiReportV2(){
     output.className="api-analysis";
     const raw=String(error.message||error||"");
     const netFail=/load failed|failed to fetch|networkerror|网络连接|could not connect|not allowed to request/i.test(raw);
-    output.textContent=netFail
+    const noCredits=/额度不足/.test(raw);
+    const expired=/登录已过期/.test(raw);
+    output.textContent=noCredits
+      ? "你的深度解析额度已用完。邀请一位新用户注册，双方各得 1 次免费深度解析；也可以开通会员获得更多额度。"
+      : expired
+        ? "登录已过期，请重新登录后再生成深度解读。"
+      : netFail
       ? "无法连接 AI 服务：你的网络访问不到 AI 服务器（可能是跨域或网络限制）。请切换网络（如手机流量）后再试；若仍不行请联系店主。"
       : `AI 解读暂时无法生成：${error.message}。可稍后重试，或联系店主检查配置。`;
+    if(noCredits) showToast("深度解析额度不足，可邀请好友或开通会员");
+    if(expired){ clearSession(); showAuthGate(); }
   }
 }
 /* 多后端自动切换：按配置顺序尝试 [worker, vercel]，哪个网络能通就用哪个 */
@@ -748,11 +757,21 @@ async function callAiBackends(prompt){
   let lastErr="AI 服务暂时不可用";
   for(const base of aiBackendBases()){
     try{
-      const res=await fetch(`${base}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt})});
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(), 9000);
+      const res=await fetch(`${base}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt}),signal:controller.signal});
+      clearTimeout(timeout);
       const data=await res.json().catch(()=>null);
       if(res.ok&&data&&data.ok) return data;
-      lastErr=(data&&data.error)||`AI 服务返回 ${res.status}`;
-    }catch(e){ lastErr=e.message||lastErr; }
+      const message=(data&&data.error)||`AI 服务返回 ${res.status}`;
+      // Do not try the fallback after a definitive account/credit rejection.
+      if([401,402].includes(res.status)) throw new Error(message);
+      lastErr=message;
+    }catch(e){
+      if(e && e.name==="AbortError") lastErr=`${new URL(base).host} 连接超时`;
+      else lastErr=e.message||lastErr;
+      if(/登录已过期|额度不足/.test(lastErr)) throw e;
+    }
   }
   throw new Error(lastErr);
 }
