@@ -711,20 +711,26 @@ async function saveReadingToServer(){
     if(r&&r.ok) lastReadingId=r.id;
   }catch(e){ /* 静默，不影响占卜流程 */ }
 }
+let aiReportBusy=false;
 async function generateAiReportV2(){
   if(!state.drawn.length) return;
-  if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
+  if(aiReportBusy){ showToast("AI 正在生成，请稍候"); return; }
+  aiReportBusy=true;
+  const aiButton=$("btnAiReport");
+  if(aiButton){ aiButton.disabled=true; aiButton.textContent="AI 生成中…"; }
+  let output=null;
+  try{
+    if(AI_REPORT_NEEDS_MEMBER && sbConfigured()){
     if(!getSession()){ openAccount(); showToast("AI 深度解读需先登录账号（额度在账号里，邀请好友即可获得）"); return; }
     await ensureEntitlementMerged();   // 先合并设备VIP权益
     // Do not block on cached credits here. The Worker checks and consumes the
     // authoritative server balance atomically; cached balance can be stale.
     await refreshAccount();
-  }
-  if(!aiApiBase() && !payApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
-  const root=$("report"); let panel=$("aiAnalysis");
-  if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
-  const output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
-  try{
+    }
+    if(!aiApiBase() && !payApiBase()){ showToast("店主 AI 服务尚未配置，请联系店主"); return; }
+    const root=$("report"); let panel=$("aiAnalysis");
+    if(!panel){panel=document.createElement("section");panel.id="aiAnalysis";panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis loading"></div>';root.appendChild(panel);}
+    output=panel.querySelector(".api-analysis"); output.className="api-analysis loading"; output.textContent="AI 正在整理这副牌阵的关联与行动建议...";
     const data=await callAiBackends(apiPrompt());
     output.textContent=data.text; output.className="api-analysis";
     await refreshAccount();   // 同步服务端扣减后的余额
@@ -732,6 +738,12 @@ async function generateAiReportV2(){
     if(lastReadingId) sbRpc("update_ai_report",{p_token:getSession(),p_id:lastReadingId,p_ai:data.text}).catch(()=>{});
     if(AI_REPORT_NEEDS_MEMBER && sbConfigured()) showToast(`已消耗 1 次深度解析，剩余 ${getCredits()} 次`);
   }catch(error){
+    if(!output){
+      const root=$("report");
+      let panel=$("aiAnalysis");
+      if(!panel){ panel=document.createElement("section"); panel.id="aiAnalysis"; panel.innerHTML='<div class="sec-title">✦ AI 深度解读</div><div class="api-analysis"></div>'; root?.appendChild(panel); }
+      output=panel.querySelector(".api-analysis");
+    }
     output.className="api-analysis";
     const raw=String(error.message||error||"");
     const netFail=/load failed|failed to fetch|networkerror|网络连接|could not connect|not allowed to request/i.test(raw);
@@ -746,6 +758,9 @@ async function generateAiReportV2(){
       : `AI 解读暂时无法生成：${error.message}。可稍后重试，或联系店主检查配置。`;
     if(noCredits) showToast("深度解析额度不足，可邀请好友或开通会员");
     if(expired){ clearSession(); showAuthGate(); }
+  }finally{
+    aiReportBusy=false;
+    if(aiButton){ aiButton.disabled=false; aiButton.textContent="AI 深度解读"; }
   }
 }
 /* Use configured AI services only. A failed Worker must surface its real error,
@@ -760,11 +775,16 @@ async function callAiBackends(prompt){
   let lastNetworkError="AI 服务暂时不可用";
   for(const base of bases){
     try{
+      // Worker uses /api/ai; a Supabase Edge Function URL is already the
+      // complete endpoint and must not receive a second path suffix.
+      const endpoint = /\/functions\/v1\/[^/]+$/.test(base) || /\/api\/ai$/.test(base)
+        ? base
+        : `${base}/api/ai`;
       const controller=new AbortController();
       // DeepSeek needs more than a few seconds for a complete multi-card reading.
       // Do not abort a healthy Worker request before the model can answer.
       const timeout=setTimeout(()=>controller.abort(), 45000);
-      const res=await fetch(`${base}/api/ai`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt}),signal:controller.signal});
+      const res=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:getSession(),prompt}),signal:controller.signal});
       clearTimeout(timeout);
       const data=await res.json().catch(()=>null);
       if(res.ok&&data&&data.ok) return data;
